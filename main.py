@@ -1,3 +1,7 @@
+from config.settings import (
+    PROPERTIES_PER_FLYER
+)
+
 from utils.monday import (
     obtener_columnas_disponibles,
     obtener_todos_los_items
@@ -10,10 +14,24 @@ from utils.inventory import (
 )
 
 from utils.drive import (
-    conectar_drive,
-    procesar_current_drive,
-    procesar_archived_drive,
-    guardar_drive_datasets
+    conectar_drive
+)
+
+from utils.drive_index import (
+    construir_indice_drive,
+    match_current_drive,
+    match_archived_drive,
+    calcular_archived_necesarios,
+    guardar_drive_datasets,
+    auditar_drive_no_utilizado
+)
+
+from utils.flyer_data import (
+    crear_grupos_flyers
+)
+
+from utils.flyer import (
+    generar_flyers
 )
 
 
@@ -35,8 +53,10 @@ def main():
         obtener_todos_los_items()
     )
 
-    df = crear_dataframe(
-        items
+    df = (
+        crear_dataframe(
+            items
+        )
     )
 
     current, archived = (
@@ -50,13 +70,17 @@ def main():
         archived
     )
 
+    print("\n" + "=" * 100)
+    print("RESUMEN MONDAY")
+    print("=" * 100)
+
     print(
-        f"\nCurrent detectadas: "
+        f"Current detectadas: "
         f"{len(current)}"
     )
 
     print(
-        f"Archived con Rented Date: "
+        f"Archived detectadas: "
         f"{len(archived)}"
     )
 
@@ -66,99 +90,187 @@ def main():
 
     print("\nFASE 2 - GOOGLE DRIVE")
 
-    drive = conectar_drive()
+    drive = (
+        conectar_drive()
+    )
 
-    # --------------------------------------------------------
-    # Current
-    # --------------------------------------------------------
+    # ========================================================
+    # CREAR ÍNDICE DRIVE UNA SOLA VEZ
+    # ========================================================
+
+    drive_index = (
+        construir_indice_drive(
+            drive
+        )
+    )
+
+    # ========================================================
+    # MATCH CURRENT
+    # ========================================================
 
     current_drive = (
-        procesar_current_drive(
-            drive,
-            current
+        match_current_drive(
+            current,
+            drive_index
         )
     )
 
-    # --------------------------------------------------------
-    # Archived
-    #
-    # Solo buscamos hasta conseguir
-    # 9 propiedades recientes CON imagen
-    # --------------------------------------------------------
+    # ========================================================
+    # CALCULAR ARCHIVED NECESARIOS
+    # ========================================================
+
+    archived_necesarios = (
+        calcular_archived_necesarios(
+            len(current_drive)
+        )
+    )
+
+    print("\n" + "=" * 100)
+    print("CÁLCULO DE FLYERS")
+    print("=" * 100)
+
+    print(
+        f"Current con imagen: "
+        f"{len(current_drive)}"
+    )
+
+    print(
+        f"Propiedades por flyer: "
+        f"{PROPERTIES_PER_FLYER}"
+    )
+
+    print(
+        f"Archived necesarias para "
+        f"completar el último flyer: "
+        f"{archived_necesarios}"
+    )
+
+    # ========================================================
+    # MATCH ARCHIVED
+    # ========================================================
 
     archived_drive = (
-        procesar_archived_drive(
-            drive,
-            archived
+        match_archived_drive(
+            archived,
+            drive_index,
+            archived_necesarios
         )
     )
 
-    # --------------------------------------------------------
-    # Guardar
-    # --------------------------------------------------------
+    # ========================================================
+    # GUARDAR RESULTADOS DRIVE
+    # ========================================================
 
     guardar_drive_datasets(
         current_drive,
         archived_drive
     )
 
-    # ========================================================
-    # RESUMEN
-    # ========================================================
-
-    current_con_imagen = (
-        current_drive[
-            "image_drive_url"
-        ]
-        .fillna("")
-        .ne("")
-        .sum()
+    auditoria_drive = (
+        auditar_drive_no_utilizado(
+            drive_index,
+            current,
+            archived
+        )
     )
 
+    # ========================================================
+    # RESUMEN DRIVE
+    # ========================================================
+
     print("\n" + "=" * 100)
-    print("RESUMEN")
+    print("RESUMEN GOOGLE DRIVE")
     print("=" * 100)
 
     print(
-        f"\nCurrent total: "
+        f"Current con imagen: "
         f"{len(current_drive)}"
     )
 
     print(
-        f"Current con imagen: "
-        f"{current_con_imagen}"
+        f"Archived requeridas: "
+        f"{archived_necesarios}"
     )
 
     print(
-        f"Current sin imagen: "
-        f"{len(current_drive) - current_con_imagen}"
-    )
-
-    print(
-        f"\nArchived recientes "
-        f"con imagen: "
+        f"Archived encontradas: "
         f"{len(archived_drive)}"
     )
 
-    print("\nArchivos generados:")
+    # print("Aqui muere el main Fase 1 y 2 completado")
+    # return
+
+    # ========================================================
+    # FASE 3 - PREPARAR FLYERS
+    # ========================================================
 
     print(
-        "- data/current_inventory.csv"
+        "\nFASE 3 - PREPARANDO FLYERS"
+    )
+
+    grupos = (
+        crear_grupos_flyers(
+            current_drive,
+            archived_drive
+        )
     )
 
     print(
-        "- data/archived_inventory.csv"
+        f"\nFlyers a generar: "
+        f"{len(grupos)}"
     )
+
+    for indice, grupo in enumerate(
+        grupos,
+        start=1
+    ):
+
+        current_count = (
+            grupo[
+                "listing_type"
+            ]
+            .eq("current")
+            .sum()
+        )
+
+        archived_count = (
+            grupo[
+                "listing_type"
+            ]
+            .eq("archived")
+            .sum()
+        )
+
+        print(
+            f"Flyer {indice}: "
+            f"{current_count} Current + "
+            f"{archived_count} Archived"
+        )
+
+    # ========================================================
+    # FASE 4 - GENERAR PNG
+    # ========================================================
 
     print(
-        "- data/current_inventory_drive.csv"
+        "\nFASE 4 - GENERANDO PNG"
     )
+
+    archivos = (
+        generar_flyers(
+            grupos
+        )
+    )
+
+    for archivo in archivos:
+
+        print(
+            f"Generado: "
+            f"{archivo}"
+        )
 
     print(
-        "- data/archived_inventory_drive.csv"
+        "\nProceso terminado."
     )
-
-    print("\nProceso terminado.")
 
 
 if __name__ == "__main__":

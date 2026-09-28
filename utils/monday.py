@@ -38,13 +38,18 @@ def consultar_monday(
 
     if response.status_code != 200:
 
-        print(response.text)
-
-        raise Exception(
-            f"Error HTTP {response.status_code}"
+        print(
+            response.text
         )
 
-    resultado = response.json()
+        raise Exception(
+            f"Error HTTP "
+            f"{response.status_code}"
+        )
+
+    resultado = (
+        response.json()
+    )
 
     if "errors" in resultado:
 
@@ -56,7 +61,7 @@ def consultar_monday(
 
 
 # ============================================================
-# TODAS LAS COLUMNAS DISPONIBLES
+# COLUMNAS DISPONIBLES
 # ============================================================
 
 def obtener_columnas_disponibles():
@@ -86,13 +91,26 @@ def obtener_columnas_disponibles():
         }
     )
 
-    board = data["boards"][0]
+    board = (
+        data["boards"][0]
+    )
 
-    print("\n" + "=" * 100)
-    print("COLUMNAS DISPONIBLES EN MONDAY")
-    print("=" * 100)
+    print(
+        "\n" +
+        "=" * 100
+    )
 
-    for columna in board["columns"]:
+    print(
+        "COLUMNAS DISPONIBLES EN MONDAY"
+    )
+
+    print(
+        "=" * 100
+    )
+
+    for columna in board[
+        "columns"
+    ]:
 
         print(
             f'{columna["title"]:<25} '
@@ -100,16 +118,13 @@ def obtener_columnas_disponibles():
             f'[{columna["type"]}]'
         )
 
-    print(
-        f"\nTotal columnas: "
-        f"{len(board['columns'])}"
-    )
-
-    return board["columns"]
+    return board[
+        "columns"
+    ]
 
 
 # ============================================================
-# PRIMERA PÁGINA
+# PRIMERA PAGINA
 # ============================================================
 
 def obtener_primera_pagina():
@@ -154,7 +169,7 @@ def obtener_primera_pagina():
 
 
 # ============================================================
-# SIGUIENTE PÁGINA
+# SIGUIENTES PAGINAS
 # ============================================================
 
 def obtener_siguiente_pagina(
@@ -192,9 +207,11 @@ def obtener_siguiente_pagina(
         }
     )
 
-    return data[
-        "next_items_page"
-    ]
+    return (
+        data[
+            "next_items_page"
+        ]
+    )
 
 
 # ============================================================
@@ -205,13 +222,17 @@ def obtener_todos_los_items():
 
     items = []
 
-    pagina = obtener_primera_pagina()
+    pagina = (
+        obtener_primera_pagina()
+    )
 
     items.extend(
         pagina["items"]
     )
 
-    cursor = pagina["cursor"]
+    cursor = (
+        pagina["cursor"]
+    )
 
     print(
         f"\nItems descargados: "
@@ -230,7 +251,9 @@ def obtener_todos_los_items():
             pagina["items"]
         )
 
-        cursor = pagina["cursor"]
+        cursor = (
+            pagina["cursor"]
+        )
 
         print(
             f"Items descargados: "

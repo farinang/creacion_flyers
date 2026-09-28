@@ -29,20 +29,30 @@ def crear_dataframe(items):
     for item in items:
 
         registro = {
-            "property": item["name"]
+            "property":
+                item["name"]
         }
 
-        for nombre in MONDAY_COLUMNS:
+        for nombre in (
+            MONDAY_COLUMNS.keys()
+        ):
 
-            registro[nombre] = ""
+            registro[
+                nombre
+            ] = ""
 
         for valor in item[
             "column_values"
         ]:
 
-            column_id = valor["id"]
+            column_id = (
+                valor["id"]
+            )
 
-            if column_id not in id_a_nombre:
+            if (
+                column_id
+                not in id_a_nombre
+            ):
                 continue
 
             nombre = (
@@ -51,8 +61,12 @@ def crear_dataframe(items):
                 ]
             )
 
-            registro[nombre] = (
-                valor.get("text")
+            registro[
+                nombre
+            ] = (
+                valor.get(
+                    "text"
+                )
                 or ""
             )
 
@@ -70,7 +84,7 @@ def crear_dataframe(items):
 
 
 # ============================================================
-# ORDENAR CURRENT POR CANTIDAD DE LOCATION
+# ORDEN CURRENT POR LOCATION
 # ============================================================
 
 def ordenar_por_location(df):
@@ -91,20 +105,23 @@ def ordenar_por_location(df):
 
     df["_cantidad_location"] = (
         df["Location"]
-        .map(cantidades)
+        .map(
+            cantidades
+        )
     )
 
-    df = df.sort_values(
-        by=[
-            "_cantidad_location",
-            "Location",
-            "property"
-        ],
-        ascending=[
-            False,
-            True,
-            True
-        ]
+    df = (
+        df.sort_values(
+            by=[
+                "_cantidad_location",
+                "Location"
+            ],
+            ascending=[
+                False,
+                True
+            ],
+            kind="stable"
+        )
     )
 
     df = df.drop(
@@ -113,50 +130,75 @@ def ordenar_por_location(df):
         ]
     )
 
-    return df.reset_index(
-        drop=True
+    return (
+        df.reset_index(
+            drop=True
+        )
     )
 
 
 # ============================================================
-# ORDENAR ARCHIVED POR FECHA DE RENTA
+# ARCHIVED MAS RECIENTE
 # ============================================================
 
 def ordenar_archived_por_fecha(df):
 
     df = df.copy()
 
-    # --------------------------------------------------------
-    # Convertir Rented Date a datetime solo temporalmente
-    # --------------------------------------------------------
+    # ========================================================
+    # CONVERTIR FECHAS
+    # ========================================================
 
-    df["_rented_date_sort"] = (
-        pd.to_datetime(
-            df["Rented Date"],
-            errors="coerce"
-        )
+    df["_rented_date_sort"] = pd.to_datetime(
+        df["Rented Date"],
+        errors="coerce"
     )
 
-    # --------------------------------------------------------
-    # Eliminar propiedades sin fecha de renta
-    # --------------------------------------------------------
+    df["_last_updated_sort"] = pd.to_datetime(
+        df["Last updated"],
+        errors="coerce"
+    )
 
-    df = df[
-        df["_rented_date_sort"].notna()
-    ].copy()
+    # ========================================================
+    # INDICAR SI TIENE RENTED DATE
+    # ========================================================
 
-    # --------------------------------------------------------
-    # Más reciente primero
-    # --------------------------------------------------------
+    df["_tiene_rented_date"] = (
+        df["_rented_date_sort"]
+        .notna()
+    )
+
+    # ========================================================
+    # ORDEN
+    #
+    # 1. Primero propiedades CON Rented Date
+    # 2. Rented Date más reciente primero
+    # 3. Las que no tienen fecha se ordenan por Last updated
+    # ========================================================
 
     df = df.sort_values(
-        by="_rented_date_sort",
-        ascending=False
+        by=[
+            "_tiene_rented_date",
+            "_rented_date_sort",
+            "_last_updated_sort"
+        ],
+        ascending=[
+            False,
+            False,
+            False
+        ],
+        kind="stable"
     )
+
+    # ========================================================
+    # QUITAR COLUMNAS TEMPORALES
+    # ========================================================
 
     df = df.drop(
         columns=[
-            "_rented_date_sort"
+            "_rented_date_sort",
+            "_last_updated_sort",
+            "_tiene_rented_date"
         ]
     )
 
@@ -164,9 +206,8 @@ def ordenar_archived_por_fecha(df):
         drop=True
     )
 
-
 # ============================================================
-# SEPARAR INVENTARIOS
+# SEPARAR
 # ============================================================
 
 def separar_inventarios(df):
@@ -190,17 +231,11 @@ def separar_inventarios(df):
         )
     ].copy()
 
-    # Current:
-    # Location con más propiedades primero
-
     current = (
         ordenar_por_location(
             current
         )
     )
-
-    # Archived:
-    # renta más reciente primero
 
     archived = (
         ordenar_archived_por_fecha(
