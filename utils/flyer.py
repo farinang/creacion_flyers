@@ -1,6 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 import re
+import time
 
 import requests
 
@@ -42,6 +43,7 @@ from config.settings import (
     FONT_SIZE_LOCATION_MIN,
     FONT_SIZE_PRICE,
     FONT_SIZE_BADGE,
+    BADGE_TEXT_STROKE_WIDTH,
     FONT_SIZE_BED_BATH_VALUE,
     FONT_SIZE_BED_BATH_LABEL,
     FONT_SIZE_RENTED,
@@ -164,7 +166,13 @@ from config.settings import (
     LOCATION_MAX_WIDTH_LEFT,
     LOCATION_MAX_WIDTH_RIGHT,
     LOCATION_MAX_LINES,
-    LOCATION_MULTILINE_EXTRA_UP
+    LOCATION_MULTILINE_EXTRA_UP,
+
+    # ========================================================
+    # Caché
+    # ========================================================
+
+    CACHE_IMAGES_DIR
 )
 
 
@@ -174,6 +182,13 @@ from config.settings import (
 
 _FONT_CACHE = {}
 _ICON_CACHE = {}
+_IMAGE_CACHE_MEMORY = {}
+
+_IMAGE_PREPARATION_STATS = {
+    "cache": 0,
+    "drive": 0,
+    "failed": []
+}
 
 
 # ============================================================
@@ -659,13 +674,107 @@ def construir_url_descarga(
 
     return url
 
+# ============================================================
+# RUTA DE IMAGEN EN CACHE
+# ============================================================
+
+def obtener_ruta_cache_imagen(
+    url
+):
+
+    file_id = (
+        extraer_drive_file_id(
+            url
+        )
+    )
+
+    if not file_id:
+
+        return None
+
+    return (
+        CACHE_IMAGES_DIR /
+        f"{file_id}.jpg"
+    )
+
+
+# ============================================================
+# CARGAR IMAGEN DESDE CACHE
+# ============================================================
+
+def cargar_imagen_desde_cache(
+    url
+):
+
+    ruta_cache = (
+        obtener_ruta_cache_imagen(
+            url
+        )
+    )
+
+    if ruta_cache is None:
+
+        return None
+
+    if not ruta_cache.exists():
+
+        return None
+
+    try:
+
+        imagen = (
+            Image.open(
+                ruta_cache
+            )
+            .convert(
+                "RGB"
+            )
+        )
+
+        return imagen
+
+    except Exception:
+
+        return None
+
+
+# ============================================================
+# GUARDAR IMAGEN EN CACHE
+# ============================================================
+
+def guardar_imagen_en_cache(
+    imagen,
+    url
+):
+
+    ruta_cache = (
+        obtener_ruta_cache_imagen(
+            url
+        )
+    )
+
+    if ruta_cache is None:
+
+        return
+
+    CACHE_IMAGES_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    imagen.save(
+        ruta_cache,
+        format="JPEG",
+        quality=95
+    )
 
 # ============================================================
 # DESCARGAR IMAGEN
 # ============================================================
 
 def descargar_imagen_desde_url(
-    url
+    url,
+    max_intentos=3
 ):
 
     url_descarga = (
@@ -692,29 +801,435 @@ def descargar_imagen_desde_url(
         )
     }
 
-    response = (
-        requests.get(
-            url_descarga,
-            headers=headers,
-            timeout=30
-        )
-    )
+    ultimo_error = None
 
-    response.raise_for_status()
+    for intento in range(
+        1,
+        max_intentos + 1
+    ):
 
-    image = (
-        Image.open(
-            BytesIO(
-                response.content
+        try:
+
+            response = (
+                requests.get(
+                    url_descarga,
+                    headers=headers,
+                    timeout=30
+                )
             )
-        )
-        .convert(
-            "RGB"
-        )
+
+            response.raise_for_status()
+
+            content_type = (
+                response.headers
+                .get(
+                    "Content-Type",
+                    ""
+                )
+                .lower()
+            )
+
+            if (
+                "image"
+                not in content_type
+            ):
+
+                raise ValueError(
+                    "Google Drive no devolvió "
+                    "una imagen. "
+                    f"Content-Type: "
+                    f"{content_type}"
+                )
+
+            imagen = (
+                Image.open(
+                    BytesIO(
+                        response.content
+                    )
+                )
+                .convert(
+                    "RGB"
+                )
+            )
+
+            return imagen
+
+        except Exception as error:
+
+            ultimo_error = error
+
+            if intento < max_intentos:
+
+                time.sleep(
+                    intento * 2
+                )
+
+    raise RuntimeError(
+        f"No se pudo descargar la imagen "
+        f"después de {max_intentos} intentos. "
+        f"Último error: {ultimo_error}"
     )
 
-    return image
+# ============================================================
+# PREPARAR IMÁGENES
+# ============================================================
+#
+# Si existe cache:
+#
+#     utiliza las imágenes disponibles
+#     y descarga solamente las faltantes.
+#
+# Si NO existe cache:
+#
+#     crea la carpeta
+#     y descarga todas las imágenes desde Drive.
+#
+# ============================================================
 
+def preparar_imagenes_flyers(
+    grupos
+):
+
+    global _IMAGE_CACHE_MEMORY
+    global _IMAGE_PREPARATION_STATS
+
+    _IMAGE_CACHE_MEMORY = {}
+
+    _IMAGE_PREPARATION_STATS = {
+        "cache": 0,
+        "drive": 0,
+        "failed": []
+    }
+
+    # ========================================================
+    # DETECTAR SI CACHE EXISTÍA
+    # ========================================================
+
+    cache_existia = (
+        CACHE_IMAGES_DIR.exists()
+    )
+
+    print(
+        "\n" + "=" * 100
+    )
+
+    print(
+        "PREPARANDO IMÁGENES"
+    )
+
+    print(
+        "=" * 100
+    )
+
+    if cache_existia:
+
+        print(
+            "Cache encontrada."
+        )
+
+        print(
+            "Se utilizarán imágenes locales "
+            "y solo se descargarán las faltantes."
+        )
+
+    else:
+
+        print(
+            "Cache no encontrada."
+        )
+
+        print(
+            "Todas las imágenes serán "
+            "descargadas desde Google Drive."
+        )
+
+        CACHE_IMAGES_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+    # ========================================================
+    # OBTENER PROPIEDADES ÚNICAS
+    # ========================================================
+
+    registros = []
+
+    urls_vistas = set()
+
+    for grupo in grupos:
+
+        for _, fila in grupo.iterrows():
+
+            url = str(
+                fila.get(
+                    "image_drive_url",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            if not url:
+
+                continue
+
+            if url in urls_vistas:
+
+                continue
+
+            urls_vistas.add(
+                url
+            )
+
+            property_name = str(
+                fila.get(
+                    "property",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            registros.append(
+                {
+                    "property":
+                        property_name,
+
+                    "url":
+                        url
+                }
+            )
+
+    total = len(
+        registros
+    )
+
+    exitosas = 0
+
+    # ========================================================
+    # PROGRESO
+    # ========================================================
+
+    print(
+        f"\nPreparando imágenes: "
+        f"0/{total}",
+        end="",
+        flush=True
+    )
+
+    for registro in registros:
+
+        property_name = (
+            registro[
+                "property"
+            ]
+        )
+
+        url = (
+            registro[
+                "url"
+            ]
+        )
+
+        imagen = None
+
+        # ====================================================
+        # MEMORIA
+        # ====================================================
+
+        if url in _IMAGE_CACHE_MEMORY:
+
+            imagen = (
+                _IMAGE_CACHE_MEMORY[
+                    url
+                ]
+            )
+
+        # ====================================================
+        # CACHE LOCAL
+        # ====================================================
+
+        if (
+            imagen is None
+            and cache_existia
+        ):
+
+            imagen = (
+                cargar_imagen_desde_cache(
+                    url
+                )
+            )
+
+            if imagen is not None:
+
+                _IMAGE_PREPARATION_STATS[
+                    "cache"
+                ] += 1
+
+        # ====================================================
+        # GOOGLE DRIVE
+        # ====================================================
+
+        if imagen is None:
+
+            try:
+
+                imagen = (
+                    descargar_imagen_desde_url(
+                        url
+                    )
+                )
+
+                guardar_imagen_en_cache(
+                    imagen,
+                    url
+                )
+
+                _IMAGE_PREPARATION_STATS[
+                    "drive"
+                ] += 1
+
+            except Exception:
+
+                _IMAGE_PREPARATION_STATS[
+                    "failed"
+                ].append(
+                    {
+                        "property":
+                            property_name,
+
+                        "url":
+                            url
+                    }
+                )
+
+        # ====================================================
+        # GUARDAR EN MEMORIA
+        # ====================================================
+
+        if imagen is not None:
+
+            _IMAGE_CACHE_MEMORY[
+                url
+            ] = imagen
+
+            exitosas += 1
+
+        # ====================================================
+        # ACTUALIZAR MISMA LÍNEA
+        # ====================================================
+
+        print(
+            f"\rPreparando imágenes: "
+            f"{exitosas}/{total}",
+            end="",
+            flush=True
+        )
+
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    failed = (
+        _IMAGE_PREPARATION_STATS[
+            "failed"
+        ]
+    )
+
+    if not failed:
+
+        print(
+            f"\rPreparando imágenes: "
+            f"{total}/{total} - Todo OK"
+        )
+
+    else:
+
+        print(
+            f"\rPreparando imágenes: "
+            f"{exitosas}/{total}"
+        )
+
+        print(
+            "\nNo se pudo descargar:"
+        )
+
+        for error in failed:
+
+            print(
+                f'- {error["property"]} / '
+                f'{error["url"]}'
+            )
+
+    # ========================================================
+    # RESUMEN DEL ORIGEN
+    # ========================================================
+
+    usadas_cache = (
+        _IMAGE_PREPARATION_STATS[
+            "cache"
+        ]
+    )
+
+    descargadas = (
+        _IMAGE_PREPARATION_STATS[
+            "drive"
+        ]
+    )
+
+    print()
+
+    if not cache_existia:
+
+        print(
+            "Modo imágenes: "
+            "Google Drive → Cache local"
+        )
+
+        print(
+            f"Descargadas desde Drive: "
+            f"{descargadas}"
+        )
+
+    elif (
+        usadas_cache > 0
+        and descargadas > 0
+    ):
+
+        print(
+            "Modo imágenes: "
+            "Cache local + Google Drive"
+        )
+
+        print(
+            f"Desde cache: "
+            f"{usadas_cache}"
+        )
+
+        print(
+            f"Descargadas nuevas: "
+            f"{descargadas}"
+        )
+
+    elif (
+        usadas_cache > 0
+        and descargadas == 0
+    ):
+
+        print(
+            "Modo imágenes: "
+            "Solo cache local"
+        )
+
+        print(
+            f"Desde cache: "
+            f"{usadas_cache}"
+        )
+
+    else:
+
+        print(
+            "Modo imágenes: "
+            "Google Drive"
+        )
 
 # ============================================================
 # PLACEHOLDER
@@ -799,15 +1314,24 @@ def preparar_imagen_propiedad(
     url
 ):
 
-    try:
-
-        imagen = (
-            descargar_imagen_desde_url(
-                url
-            )
+    imagen = (
+        _IMAGE_CACHE_MEMORY.get(
+            url
         )
+    )
 
-    except Exception:
+    # ========================================================
+    # FALLBACK
+    # ========================================================
+    #
+    # En condiciones normales la imagen ya fue preparada
+    # anteriormente.
+    #
+    # Si no existe, utilizamos placeholder.
+    #
+    # ========================================================
+
+    if imagen is None:
 
         imagen = (
             crear_placeholder_imagen()
@@ -871,6 +1395,34 @@ def dibujar_location(
     )
 
     # ========================================================
+    # ALTURA DE REFERENCIA
+    # ========================================================
+    #
+    # Guardamos la altura que tendría Location con
+    # FONT_SIZE_LOCATION original.
+    #
+    # Si posteriormente reducimos la fuente,
+    # compensaremos verticalmente para mantener
+    # el mismo centro visual.
+    #
+    # ========================================================
+
+    font_referencia = cargar_fuente(
+        FONT_GARET_BOLD,
+        FONT_SIZE_LOCATION
+    )
+
+    _, altura_referencia = (
+        medir_texto(
+            draw,
+            "Ag",
+            font_referencia
+        )
+    )
+
+    ajuste_fuente_y = 0
+
+    # ========================================================
     # PALABRA ÚNICA MUY LARGA
     # ========================================================
     #
@@ -917,6 +1469,44 @@ def dibujar_location(
                     texto,
                     font
                 )
+            )
+
+        # ========================================================
+        # COMPENSACIÓN VERTICAL POR CAMBIO DE FUENTE
+        # ========================================================
+        #
+        # Solo aplicamos compensación si realmente
+        # FONT_SIZE_LOCATION fue reducido.
+        #
+        # Si la fuente mantiene su tamaño original,
+        # ajuste_fuente_y permanece en 0.
+        #
+        # ========================================================
+
+        if font_size < FONT_SIZE_LOCATION:
+
+            bbox_referencia = draw.textbbox(
+                (
+                    0,
+                    0
+                ),
+                texto,
+                font=font_referencia
+            )
+
+            bbox_actual = draw.textbbox(
+                (
+                    0,
+                    0
+                ),
+                texto,
+                font=font
+            )
+
+            ajuste_fuente_y = (
+                bbox_referencia[3]
+                - bbox_actual[3]
+                - 2
             )
 
     # ========================================================
@@ -979,6 +1569,7 @@ def dibujar_location(
         y
         - offset_vertical
         - extra_up
+        + ajuste_fuente_y
     )
 
     # ========================================================
@@ -1031,10 +1622,15 @@ def dibujar_location(
 # ============================================================
 
 def dibujar_badge_for_rent(
+    canvas,
     draw,
     x,
     y
 ):
+
+    # ========================================================
+    # BADGE
+    # ========================================================
 
     rect = (
         x,
@@ -1054,41 +1650,109 @@ def dibujar_badge_for_rent(
         )
     )
 
-    font = (
-        cargar_fuente(
-            FONT_COMFORTAA_BOLD,
-            FONT_SIZE_BADGE
+    # ========================================================
+    # TEXTO - SUPERSAMPLING
+    # ========================================================
+    #
+    # En lugar de renderizar Comfortaa Bold directamente
+    # a FONT_SIZE_BADGE (muy pequeño), lo dibujamos
+    # varias veces más grande y después lo reducimos.
+    #
+    # Esto conserva mejor la forma y el grosor
+    # original de la fuente.
+    #
+    # ========================================================
+
+    SCALE = 5
+
+    font = cargar_fuente(
+        FONT_COMFORTAA_BOLD,
+        FONT_SIZE_BADGE * SCALE
+    )
+
+    # ========================================================
+    # MEDIR TEXTO
+    # ========================================================
+
+    temp_draw = ImageDraw.Draw(
+        Image.new(
+            "RGBA",
+            (
+                FOR_RENT_BADGE_WIDTH * SCALE,
+                FOR_RENT_BADGE_HEIGHT * SCALE
+            ),
+            (
+                0,
+                0,
+                0,
+                0
+            )
         )
     )
 
-    text_w, text_h = (
-        medir_texto(
-            draw,
-            FOR_RENT_TEXT,
-            font
+    bbox = temp_draw.textbbox(
+        (
+            0,
+            0
+        ),
+        FOR_RENT_TEXT,
+        font=font
+    )
+
+    text_w = (
+        bbox[2]
+        - bbox[0]
+    )
+
+    text_h = (
+        bbox[3]
+        - bbox[1]
+    )
+
+    # ========================================================
+    # CAPA TEMPORAL
+    # ========================================================
+
+    texto_layer = Image.new(
+        "RGBA",
+        (
+            FOR_RENT_BADGE_WIDTH * SCALE,
+            FOR_RENT_BADGE_HEIGHT * SCALE
+        ),
+        (
+            0,
+            0,
+            0,
+            0
         )
+    )
+
+    texto_draw = ImageDraw.Draw(
+        texto_layer
     )
 
     text_x = (
-        x
-        + (
+        (
             FOR_RENT_BADGE_WIDTH
+            * SCALE
             - text_w
         )
         / 2
+        - bbox[0]
     )
 
     text_y = (
-        y
-        + (
+        (
             FOR_RENT_BADGE_HEIGHT
-            - text_h
+            * SCALE
+            - text_h/2
         )
         / 2
-        - 1
+        - bbox[1]
+        - SCALE
     )
 
-    draw.text(
+    texto_draw.text(
         (
             text_x,
             text_y
@@ -1097,6 +1761,39 @@ def dibujar_badge_for_rent(
         font=font,
         fill=hex_to_rgb(
             FOR_RENT_TEXT_COLOR
+        )
+        + (255,)
+    )
+
+    # ========================================================
+    # REDUCIR A TAMAÑO REAL
+    # ========================================================
+
+    texto_layer = texto_layer.resize(
+        (
+            FOR_RENT_BADGE_WIDTH,
+            FOR_RENT_BADGE_HEIGHT
+        ),
+        Image.Resampling.LANCZOS
+    )
+
+    # ========================================================
+    # PEGAR SOBRE EL FLYER
+    # ========================================================
+
+    draw._image.alpha_composite(
+        texto_layer,
+        (
+            int(x),
+            int(y)
+        )
+    )
+
+    canvas.alpha_composite(
+        texto_layer,
+        (
+            int(x),
+            int(y)
         )
     )
 
@@ -1241,7 +1938,7 @@ def dibujar_feature(
 ):
 
     font_valor = cargar_fuente(
-        FONT_GARET_BOLD,
+        FONT_GARET_BOLD, # debe ser "Garet-Heavy.ttf"
         FONT_SIZE_BED_BATH_VALUE
     )
 
@@ -2188,16 +2885,10 @@ def dibujar_propiedad(
     # ========================================================
 
     dibujar_badge_for_rent(
-
+        canvas,
         draw,
-
-        layout[
-            "badge_x"
-        ],
-
-        layout[
-            "badge_y"
-        ]
+        layout["badge_x"],
+        layout["badge_y"]
     )
 
     # ========================================================
@@ -2336,6 +3027,48 @@ def generar_flyer(
 
 
 # ============================================================
+# LIMPIAR FLYERS ANTERIORES
+# ============================================================
+#
+# Antes de generar una nueva tanda de flyers,
+# eliminamos únicamente los PNG creados automáticamente
+# por este proyecto.
+#
+# De esta forma, si anteriormente existían 3 flyers
+# y ahora solo se necesitan 2, el flyer 03 anterior
+# no quedará guardado por error.
+#
+# ============================================================
+
+def limpiar_flyers_anteriores():
+
+    archivos = (
+        FLYERS_DIR.glob(
+            f"{FLYER_FILE_PREFIX}_*.png"
+        )
+    )
+
+    eliminados = 0
+
+    for archivo in archivos:
+
+        try:
+
+            archivo.unlink()
+
+            eliminados += 1
+
+        except Exception as error:
+
+            print(
+                f"No se pudo eliminar "
+                f"{archivo.name}: "
+                f"{error}"
+            )
+
+    return eliminados
+
+# ============================================================
 # GENERAR TODOS
 # ============================================================
 
@@ -2344,6 +3077,33 @@ def generar_flyers(
 ):
 
     archivos = []
+
+    # ========================================================
+    # LIMPIAR FLYERS ANTERIORES
+    # ========================================================
+
+    eliminados = (
+        limpiar_flyers_anteriores()
+    )
+
+    if eliminados > 0:
+
+        print(
+            f"\nFlyers anteriores eliminados: "
+            f"{eliminados}"
+        )
+
+    # ========================================================
+    # PREPARAR IMÁGENES
+    # ========================================================
+
+    preparar_imagenes_flyers(
+        grupos
+    )
+
+    # ========================================================
+    # GENERAR FLYERS
+    # ========================================================
 
     for numero, grupo in enumerate(
         grupos,

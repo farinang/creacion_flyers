@@ -29,7 +29,7 @@ def main():
     current_drive = pd.read_csv(
         CURRENT_DRIVE_FILE,
         encoding="utf-8-sig"
-    )
+    )#.iloc[:4]
 
     archived_drive = pd.read_csv(
         ARCHIVED_DRIVE_FILE,

@@ -58,32 +58,62 @@ def obtener_display_location(
     details
 ):
 
-    location_original = (
-        str(location or "")
+    location_text = (
+        str(
+            location
+            or ""
+        )
         .strip()
     )
 
-    location_norm = (
-        normalizar_texto(
-            location_original
+    details_text = (
+        str(
+            details
+            or ""
         )
+        .strip()
+        .lower()
     )
 
-    details_norm = (
-        normalizar_texto(
-            details
-        )
+    location_norm = (
+        location_text
+        .lower()
+        .strip()
     )
 
     # ========================================================
-    # CASO ESPECIAL MONROE
+    # MONROE TRAILS
+    # ========================================================
+    #
+    # En Monday puede existir como ubicación operativa:
+    #
+    # Monroe Trails
+    #
+    # Pero comercialmente en el flyer se muestra:
+    #
+    # Monroe
+    #
+    # ========================================================
+
+    if location_norm == "monroe trails":
+
+        return "Monroe"
+
+    # ========================================================
+    # MONROE / CENTER MONROE
+    # ========================================================
+    #
+    # Center Monroe no viene necesariamente como Location.
+    #
+    # Se detecta desde Details.
+    #
     # ========================================================
 
     if location_norm == "monroe":
 
         if (
             "center monroe"
-            in details_norm
+            in details_text
         ):
 
             return "Center Monroe"
@@ -94,7 +124,7 @@ def obtener_display_location(
     # RESTO DE LOCATIONS
     # ========================================================
 
-    return location_original
+    return location_text
 
 
 # ============================================================
@@ -249,22 +279,20 @@ def preparar_dataset_flyer(
     # LOCATION VISUAL
     # ========================================================
 
-    df[
-        "display_location"
-    ] = df.apply(
-        lambda fila:
+    df["display_location"] = df.apply(
+    lambda row:
         obtener_display_location(
-            fila.get(
+            row.get(
                 "Location",
                 ""
             ),
-            fila.get(
+            row.get(
                 "Details",
                 ""
             )
         ),
-        axis=1
-    )
+    axis=1
+)
 
     # ========================================================
     # PRECIO VISUAL

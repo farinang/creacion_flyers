@@ -15,6 +15,57 @@ from utils.drive import (
 )
 
 # ============================================================
+# ALIAS DE LOCATION PARA MATCH CON DRIVE
+# ============================================================
+#
+# Algunas Locations de Monday son categorías operativas
+# diferentes, pero utilizan la misma carpeta física en Drive.
+#
+# Ejemplo:
+#
+# Monday:
+#     Monroe
+#     Monroe Trails
+#
+# Drive:
+#     monroe/
+#
+# Estos alias SOLO se utilizan para hacer el match.
+#
+# NO modifican:
+#     - Location original de Monday
+#     - display_location del flyer
+#     - lógica de Center Monroe
+#
+# ============================================================
+
+LOCATION_MATCH_ALIASES = {
+    "monroetrails": "monroe"
+}
+
+
+# ============================================================
+# NORMALIZAR LOCATION PARA MATCH
+# ============================================================
+
+def normalizar_location_match(
+    location
+):
+
+    location_norm = (
+        normalizar_texto(
+            location
+        )
+    )
+
+    return (
+        LOCATION_MATCH_ALIASES.get(
+            location_norm,
+            location_norm
+        )
+    )
+
+# ============================================================
 # CALCULAR ARCHIVED NECESARIOS
 # ============================================================
 
@@ -147,7 +198,7 @@ def construir_indice_drive(
                         property_name,
 
                     "location_norm":
-                        normalizar_texto(
+                        normalizar_location_match(
                             location_name
                         ),
 
@@ -197,7 +248,7 @@ def agregar_columnas_normalizadas(
         df["Location"]
         .fillna("")
         .apply(
-            normalizar_texto
+            normalizar_location_match
         )
     )
 
@@ -877,6 +928,90 @@ def auditar_drive_no_utilizado(
                     "No coincide con Current ni Archived"
             }
         )
+
+        print("\n" + "=" * 100)
+        print("DEBUG SIN MATCH")
+        print("=" * 100)
+    
+        print(
+            "DRIVE PROPERTY RAW:",
+            repr(
+                fila_drive["property_drive"]
+            )
+        )
+    
+        print(
+            "DRIVE PROPERTY NORM:",
+            repr(
+                fila_drive["property_norm"]
+            )
+        )
+    
+        print(
+            "DRIVE LOCATION RAW:",
+            repr(
+                fila_drive["location_drive"]
+            )
+        )
+    
+        print(
+            "DRIVE LOCATION NORM:",
+            repr(
+                fila_drive["location_norm"]
+            )
+        )
+    
+        print("\nCoincidencias aproximadas en CURRENT:")
+    
+        palabra_clave = (
+            str(
+                fila_drive["property_drive"]
+            )
+            .split(",")[0]
+            .strip()
+            .lower()
+        )
+    
+        posibles = current_norm[
+            current_norm["property"]
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                palabra_clave,
+                regex=False,
+                na=False
+            )
+        ]
+    
+        for _, posible in posibles.iterrows():
+    
+            print(
+                "\nMONDAY PROPERTY RAW:",
+                repr(
+                    posible["property"]
+                )
+            )
+    
+            print(
+                "MONDAY PROPERTY NORM:",
+                repr(
+                    posible["property_norm"]
+                )
+            )
+    
+            print(
+                "MONDAY LOCATION RAW:",
+                repr(
+                    posible["Location"]
+                )
+            )
+    
+            print(
+                "MONDAY LOCATION NORM:",
+                repr(
+                    posible["location_norm"]
+                )
+            )
 
     # ========================================================
     # DATAFRAME

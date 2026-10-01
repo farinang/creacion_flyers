@@ -12,6 +12,13 @@ CREDENTIALS_DIR = BASE_DIR / "credentials"
 ASSETS_DIR = BASE_DIR / "assets"
 OUTPUT_DIR = BASE_DIR / "output"
 
+CACHE_DIR = BASE_DIR / "cache"
+
+CACHE_IMAGES_DIR = (
+    CACHE_DIR /
+    "images"
+)
+
 TEMPLATES_DIR = ASSETS_DIR / "templates"
 FONTS_DIR = ASSETS_DIR / "fonts"
 ICONS_DIR = ASSETS_DIR / "icons"
@@ -289,19 +296,39 @@ BATH_ICON_FILE = (
 # FLYER - FUENTES
 # ============================================================
 
+# FONT_GARET_BOLD = (
+#     FONTS_DIR /
+#     "DejaVuSans-Bold.ttf"
+# )
+
+# FONT_GARET_REGULAR = (
+#     FONTS_DIR /
+#     "Garet Book 300.ttf"
+# )
+
+# FONT_COMFORTAA_BOLD = (
+#     FONTS_DIR /
+#     "Comfortaa-Bold.ttf"
+# )
+
+# FONT_LEAGUE_SPARTAN_BOLD = (
+#     FONTS_DIR /
+#     "League Spartan Bold 700.otf"
+# )
+
 FONT_GARET_BOLD = (
     FONTS_DIR /
-    "DejaVuSans-Bold.ttf"
+    "Garet-Heavy.ttf"
 )
 
 FONT_GARET_REGULAR = (
     FONTS_DIR /
-    "Garet Book 300.ttf"
+    "Garet-Book.ttf"
 )
 
 FONT_COMFORTAA_BOLD = (
     FONTS_DIR /
-    "Comfortaa-Bold.ttf"
+    "Comfortaa-Light.ttf"
 )
 
 FONT_LEAGUE_SPARTAN_BOLD = (
@@ -322,10 +349,14 @@ FONT_SIZE_LOCATION = 22
 
 # Tamaño mínimo permitido cuando Location
 # es una sola palabra y no cabe en su ancho máximo
-FONT_SIZE_LOCATION_MIN = 15
+FONT_SIZE_LOCATION_MIN = 16
 
 FONT_SIZE_PRICE = 16
 FONT_SIZE_BADGE = 8
+# Grosor adicional para el texto "For Rent"
+# 0 = grosor original de la fuente
+# 1 = un poco más grueso
+BADGE_TEXT_STROKE_WIDTH = 0
 
 FONT_SIZE_BED_BATH_VALUE = 11
 FONT_SIZE_BED_BATH_LABEL = 11
@@ -417,7 +448,7 @@ LEFT_INFO_GROUP_HEIGHT = 145
 # ============================================================
 
 LEFT_LOCATION_REL_X = 0
-LEFT_LOCATION_REL_Y = 20
+LEFT_LOCATION_REL_Y = 14
 
 
 # ============================================================
@@ -584,7 +615,7 @@ LOCATION_MULTILINE_EXTRA_UP = 12
 # FLYER - SALIDA
 # ============================================================
 
-FLYER_FILE_PREFIX = "weekly_listing"
+FLYER_FILE_PREFIX = "Flyer"
 
 FLYER_FORMAT = "PNG"
 
