@@ -1923,18 +1923,81 @@ def dibujar_location(
         #
         # ====================================================
 
-        draw.text(
-            (
-                line_x,
-                line_y
-            ),
-            linea,
-            font=font,
-            fill=hex_to_rgb(
-                LOCATION_TEXT_COLOR
-            ),
-            anchor="lt"
-        )
+        # ====================================================
+        # AJUSTE VERTICAL SEGÚN CANTIDAD DE LÍNEAS
+        # ====================================================
+
+        if cantidad_lineas == 1:
+
+            # Mantener fijo el centro vertical del texto,
+            # aunque cambie el tamaño de fuente.
+
+            bbox = draw.textbbox(
+                (
+                    0,
+                    0
+                ),
+                linea,
+                font=font
+            )
+
+            text_height = (
+                bbox[3]
+                - bbox[1]
+            )
+
+            # Altura de referencia usando el tamaño normal
+            font_referencia = cargar_fuente(
+                font_location,
+                FONT_SIZE_LOCATION
+            )
+
+            bbox_referencia = draw.textbbox(
+                (
+                    0,
+                    0
+                ),
+                linea,
+                font=font_referencia
+            )
+
+            altura_referencia = (
+                bbox_referencia[3]
+                - bbox_referencia[1]
+            )
+
+            ajuste_y = (
+                altura_referencia
+                - text_height
+            ) / 2
+
+            draw.text(
+                (
+                    line_x,
+                    line_y + ajuste_y
+                ),
+                linea,
+                font=font,
+                fill=hex_to_rgb(
+                    LOCATION_TEXT_COLOR
+                ),
+                anchor="lt"
+            )
+
+        else:
+
+            draw.text(
+                (
+                    line_x,
+                    line_y
+                ),
+                linea,
+                font=font,
+                fill=hex_to_rgb(
+                    LOCATION_TEXT_COLOR
+                ),
+                anchor="lt"
+            )
 
 
 # ============================================================

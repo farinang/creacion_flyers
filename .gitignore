@@ -1,6 +1,15 @@
 # Credenciales
 credentials/
 
+# Output
+output/flyers/
+
+# Respaldo
+respaldo/
+
+# Codigo prueba
+main_flyers.py
+
 # CSV generados
 data/*.csv
 
