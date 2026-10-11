@@ -165,8 +165,8 @@ from config.settings import (
     # ========================================================
 
     LOCATION_TEXT_COLOR,
-    LOCATION_MAX_WIDTH_LEFT,
-    LOCATION_MAX_WIDTH_RIGHT,
+    LOCATION_LAYOUT_WIDTH,
+    LOCATION_MAX_TEXT_WIDTH,
     LOCATION_MAX_LINES,
     LOCATION_MULTILINE_EXTRA_UP,
 
@@ -1693,6 +1693,7 @@ def dibujar_location(
     x,
     y,
     max_width,
+    layout_width,
     align
 ):
 
@@ -1899,7 +1900,7 @@ def dibujar_location(
 
             line_x = (
                 x
-                + max_width
+                + layout_width
                 - line_w
             )
 
@@ -2872,8 +2873,11 @@ def obtener_layout_propiedad(
                 base_y
                 + left_location_y,
 
+            "location_layout_width":
+                LOCATION_LAYOUT_WIDTH,
+
             "location_max_width":
-                LOCATION_MAX_WIDTH_LEFT,
+                LOCATION_MAX_TEXT_WIDTH,
 
             "location_align":
                 "right",
@@ -2929,7 +2933,7 @@ def obtener_layout_propiedad(
     right_location_x = (
         mirror_x(
             left_location_x,
-            LOCATION_MAX_WIDTH_LEFT
+            LOCATION_LAYOUT_WIDTH
         )
     )
 
@@ -3005,8 +3009,11 @@ def obtener_layout_propiedad(
             base_y
             + left_location_y,
 
+        "location_layout_width":
+            LOCATION_LAYOUT_WIDTH,
+
         "location_max_width":
-            LOCATION_MAX_WIDTH_RIGHT,
+            LOCATION_MAX_TEXT_WIDTH,
 
         "location_align":
             "left",
@@ -3200,6 +3207,11 @@ def dibujar_propiedad(
         max_width=
             layout[
                 "location_max_width"
+            ],
+
+        layout_width=
+            layout[
+                "location_layout_width"
             ],
 
         align=

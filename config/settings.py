@@ -462,7 +462,7 @@ LEFT_INFO_GROUP_HEIGHT = 145
 # ============================================================
 
 LEFT_LOCATION_REL_X = 0
-LEFT_LOCATION_REL_Y = 18
+LEFT_LOCATION_REL_Y = 24
 
 
 # ============================================================
@@ -616,8 +616,13 @@ FEATURE_ICON_Y_OFFSET = 2
 
 LOCATION_TEXT_COLOR = COLOR_WHITE
 
-LOCATION_MAX_WIDTH_LEFT = 110
-LOCATION_MAX_WIDTH_RIGHT = 110
+# Ancho fijo usado únicamente para mantener
+# la posición actual de Location.
+LOCATION_LAYOUT_WIDTH = 108
+
+# Ancho máximo permitido para el texto.
+# Esta es la variable que puedes modificar.
+LOCATION_MAX_TEXT_WIDTH = 130
 
 LOCATION_MAX_LINES = 2
 
