@@ -155,13 +155,13 @@ def formatear_precio(valor):
         )
 
         return (
-            f"${numero:,}/month"
+            f"${numero:,} / month"
         )
 
     except ValueError:
 
         return (
-            f"${texto}/month"
+            f"${texto} / month"
         )
 
 
@@ -343,6 +343,36 @@ def preparar_dataset_flyer(
 
     return df
 
+# ============================================================
+# LOCATION PARA ORDEN DE FLYERS
+# ============================================================
+#
+# Algunas Locations distintas de Monday deben agruparse
+# juntas visualmente en los flyers.
+#
+# Monroe Trails se considera Monroe únicamente
+# para efectos de orden.
+#
+# Center Monroe sigue dependiendo de Details
+# y se ordena después de Monroe.
+#
+# ============================================================
+
+def obtener_location_order_key(
+    location
+):
+
+    location_norm = (
+        normalizar_texto(
+            location
+        )
+    )
+
+    if location_norm == "monroe trails":
+
+        return "monroe"
+
+    return location_norm
 
 # ============================================================
 # ORDENAR MONROE / CENTER MONROE
@@ -372,7 +402,7 @@ def ordenar_monroe_center(
     for location in df["Location"]:
 
         location_norm = (
-            normalizar_texto(
+            obtener_location_order_key(
                 location
             )
         )
@@ -397,12 +427,47 @@ def ordenar_monroe_center(
     ] = (
         df["Location"]
         .apply(
-            normalizar_texto
+            obtener_location_order_key
         )
         .map(
             location_order
         )
     )
+
+    # ========================================================
+    # HIGHLAND / HIGHLAND MILLS
+    # ========================================================
+    #
+    # Highland Mills debe aparecer inmediatamente
+    # después de todas las propiedades de Highland.
+    #
+    # Para lograrlo, Highland Mills utiliza el mismo
+    # orden general que Highland.
+    #
+    # ========================================================
+
+    highland_order = (
+        location_order.get(
+            "highland"
+        )
+    )
+
+    if highland_order is not None:
+
+        mascara_highland_mills = (
+            df["Location"]
+            .apply(
+                normalizar_texto
+            )
+            .eq(
+                "highland mills"
+            )
+        )
+
+        df.loc[
+            mascara_highland_mills,
+            "_location_order"
+        ] = highland_order
 
     # ========================================================
     # PRIORIDAD DENTRO DE MONROE
@@ -415,18 +480,20 @@ def ordenar_monroe_center(
     def prioridad_monroe(fila):
 
         location_norm = (
-            normalizar_texto(
+            obtener_location_order_key(
                 fila["Location"]
             )
         )
 
         if location_norm != "monroe":
+
             return 0
 
         if (
             fila["display_location"]
             == "Center Monroe"
         ):
+
             return 1
 
         return 0
@@ -439,15 +506,54 @@ def ordenar_monroe_center(
     )
 
     # ========================================================
+    # PRIORIDAD HIGHLAND / HIGHLAND MILLS
+    # ========================================================
+    #
+    # Highland       -> 0
+    # Highland Mills -> 1
+    #
+    # Como ambos tienen el mismo _location_order,
+    # esta prioridad obliga a que Highland Mills
+    # aparezca después de todas las Highland.
+    #
+    # ========================================================
+
+    def prioridad_highland(
+        fila
+    ):
+
+        location_norm = (
+            normalizar_texto(
+                fila["Location"]
+            )
+        )
+
+        if location_norm == "highland mills":
+
+            return 1
+
+        return 0
+
+
+    df[
+        "_highland_priority"
+    ] = df.apply(
+        prioridad_highland,
+        axis=1
+    )
+
+    # ========================================================
     # ORDENAR
     # ========================================================
 
     df = df.sort_values(
         by=[
             "_location_order",
-            "_monroe_priority"
+            "_monroe_priority",
+            "_highland_priority"
         ],
         ascending=[
+            True,
             True,
             True
         ],
@@ -461,7 +567,8 @@ def ordenar_monroe_center(
     df = df.drop(
         columns=[
             "_location_order",
-            "_monroe_priority"
+            "_monroe_priority",
+            "_highland_priority"
         ]
     )
 

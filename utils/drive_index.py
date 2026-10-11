@@ -3,7 +3,8 @@ import pandas as pd
 from config.settings import (
     PROPERTIES_PER_FLYER,
     CURRENT_DRIVE_FILE,
-    ARCHIVED_DRIVE_FILE
+    ARCHIVED_DRIVE_FILE,
+    CURRENT_SIN_IMAGEN_FILE
 )
 
 from utils.drive import (
@@ -210,6 +211,15 @@ def construir_indice_drive(
                     "drive_property_folder_id":
                         carpeta_property["id"],
 
+                    "image_drive_id":
+                        imagen["id"],
+
+                    "image_modified_time":
+                        imagen.get(
+                            "modifiedTime",
+                            ""
+                        ),
+
                     "image_drive_url":
                         image_drive_url,
 
@@ -292,7 +302,45 @@ def match_current_drive(
             how="left"
         )
     )
+    # --------------------------------------------------------
+    # CURRENT SIN IMAGEN EN DRIVE
+    # --------------------------------------------------------
+    #
+    # Estas propiedades fueron detectadas como Current
+    # por Monday, pero no encontraron una imagen válida
+    # dentro del índice de Google Drive.
+    #
+    # Se guarda únicamente la columna "property".
+    #
+    # --------------------------------------------------------
 
+    current_sin_imagen = resultado[
+        resultado[
+            "image_drive_url"
+        ]
+        .fillna("")
+        .eq("")
+    ].copy()
+
+
+    current_sin_imagen = (
+        current_sin_imagen[
+            [
+                "property"
+            ]
+        ]
+        .drop_duplicates()
+        .reset_index(
+            drop=True
+        )
+    )
+
+
+    current_sin_imagen.to_csv(
+        CURRENT_SIN_IMAGEN_FILE,
+        index=False,
+        encoding="utf-8-sig"
+    )
     # --------------------------------------------------------
     # SOLO ÉXITOS
     # --------------------------------------------------------
@@ -341,9 +389,51 @@ def match_current_drive(
 
     print(
         f"Current sin imagen: "
-        f"{len(current) - len(resultado)}"
+        f"{len(current_sin_imagen)}"
     )
 
+
+    if not current_sin_imagen.empty:
+
+        print(
+            "\nPropiedades Current "
+            "sin imagen en Drive:"
+        )
+
+        for property_name in (
+            current_sin_imagen[
+                "property"
+            ]
+        ):
+
+            print(
+                f"- {property_name}"
+            )
+
+
+    print(
+        f"\nArchivo generado: "
+        f"{CURRENT_SIN_IMAGEN_FILE}"
+    )
+
+    print("\n" + "=" * 100)
+    print("RESUMEN DE IMÁGENES DRIVE")
+    print("=" * 100)
+
+    print(
+        f"Propiedades con imagen en Drive: "
+        f"{len(drive_index)}"
+    )
+
+    print(
+        f"Current con imagen utilizadas: "
+        f"{len(resultado)}"
+    )
+
+    print(
+        f"Imágenes de Drive no usadas como Current: "
+        f"{len(drive_index) - len(resultado)}"
+    )
     return resultado
 
 
@@ -1064,34 +1154,34 @@ def auditar_drive_no_utilizado(
         )
     ].copy()
 
-    if not problemas.empty:
+    # if not problemas.empty:
 
-        print(
-            "\nPropiedades de Drive "
-            "que NO se están utilizando:\n"
-        )
+    #     print(
+    #         "\nPropiedades de Drive "
+    #         "que NO se están utilizando:\n"
+    #     )
 
-        for _, fila in problemas.iterrows():
+    #     for _, fila in problemas.iterrows():
 
-            print(
-                f'- {fila["property_drive"]}'
-            )
+    #         print(
+    #             f'- {fila["property_drive"]}'
+    #         )
 
-            print(
-                f'  Location: '
-                f'{fila["location_drive"]}'
-            )
+    #         print(
+    #             f'  Location: '
+    #             f'{fila["location_drive"]}'
+    #         )
 
-            print(
-                f'  Estado: '
-                f'{fila["estado"]}'
-            )
+    #         print(
+    #             f'  Estado: '
+    #             f'{fila["estado"]}'
+    #         )
 
-            print(
-                f'  Detalle: '
-                f'{fila["detalle"]}'
-            )
+    #         print(
+    #             f'  Detalle: '
+    #             f'{fila["detalle"]}'
+    #         )
 
-            print()
+    #         print()
 
     return auditoria

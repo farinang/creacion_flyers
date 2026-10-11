@@ -19,6 +19,11 @@ CACHE_IMAGES_DIR = (
     "images"
 )
 
+CACHE_MANIFEST_FILE = (
+    CACHE_DIR /
+    "cache_manifest.json"
+)
+
 TEMPLATES_DIR = ASSETS_DIR / "templates"
 FONTS_DIR = ASSETS_DIR / "fonts"
 ICONS_DIR = ASSETS_DIR / "icons"
@@ -49,7 +54,6 @@ FLYERS_DIR.mkdir(exist_ok=True)
 MONDAY_API_URL = "https://api.monday.com/v2"
 
 BOARD_ID = 18415696704
-
 
 MONDAY_TOKEN_FILE = (
     CREDENTIALS_DIR /
@@ -192,6 +196,11 @@ ARCHIVED_DRIVE_FILE = (
     "archived_inventory_drive.csv"
 )
 
+CURRENT_SIN_IMAGEN_FILE = (
+    DATA_DIR /
+    "current_sin_imagen.csv"
+)
+
 
 # ============================================================
 # GOOGLE DRIVE
@@ -321,9 +330,14 @@ FONT_GARET_BOLD = (
     "Garet-Heavy.ttf"
 )
 
-FONT_GARET_REGULAR = (
+FONT_MONTSERRAT_MEDIUM = (
     FONTS_DIR /
-    "Garet-Book.ttf"
+    "montserrat.medium.ttf"
+)
+
+FONT_MONTSERRAT_BOLD = (
+    FONTS_DIR /
+    "montserrat.bold.ttf"
 )
 
 FONT_COMFORTAA_BOLD = (
@@ -352,7 +366,7 @@ FONT_SIZE_LOCATION = 22
 FONT_SIZE_LOCATION_MIN = 16
 
 FONT_SIZE_PRICE = 16
-FONT_SIZE_BADGE = 8
+FONT_SIZE_BADGE = 9
 # Grosor adicional para el texto "For Rent"
 # 0 = grosor original de la fuente
 # 1 = un poco más grueso
@@ -448,7 +462,7 @@ LEFT_INFO_GROUP_HEIGHT = 145
 # ============================================================
 
 LEFT_LOCATION_REL_X = 0
-LEFT_LOCATION_REL_Y = 14
+LEFT_LOCATION_REL_Y = 18
 
 
 # ============================================================
@@ -533,10 +547,10 @@ RIGHT_DETAILS_OFFSET_Y = 0
 FOR_RENT_TEXT = "For Rent"
 
 FOR_RENT_BADGE_WIDTH = 67
-FOR_RENT_BADGE_HEIGHT = 11
+FOR_RENT_BADGE_HEIGHT = 12
 
 FOR_RENT_BADGE_RADIUS = (
-    FOR_RENT_BADGE_HEIGHT // 2
+    4.5
 )
 
 FOR_RENT_BG_COLOR = COLOR_GOLD
@@ -558,7 +572,7 @@ RENTED_ANGLE = 18
 # FLYER - PRICE BOX
 # ============================================================
 
-PRICE_BOX_WIDTH = 145
+PRICE_BOX_WIDTH = 155
 PRICE_BOX_HEIGHT = 35
 
 PRICE_BOX_RADIUS = (

@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 import re
 import time
+import json
 
 import requests
 
@@ -31,7 +32,8 @@ from config.settings import (
     # ========================================================
 
     FONT_GARET_BOLD,
-    FONT_GARET_REGULAR,
+    FONT_MONTSERRAT_BOLD,
+    FONT_MONTSERRAT_MEDIUM,
     FONT_COMFORTAA_BOLD,
     FONT_LEAGUE_SPARTAN_BOLD,
 
@@ -169,10 +171,15 @@ from config.settings import (
     LOCATION_MULTILINE_EXTRA_UP,
 
     # ========================================================
-    # Caché
+    # CACHE
     # ========================================================
 
-    CACHE_IMAGES_DIR
+    CACHE_IMAGES_DIR,
+    CACHE_MANIFEST_FILE
+)
+
+from utils.drive import (
+    normalizar_texto
 )
 
 
@@ -186,6 +193,8 @@ _IMAGE_CACHE_MEMORY = {}
 
 _IMAGE_PREPARATION_STATS = {
     "cache": 0,
+    "new": 0,
+    "updated": 0,
     "drive": 0,
     "failed": []
 }
@@ -675,6 +684,82 @@ def construir_url_descarga(
     return url
 
 # ============================================================
+# CARGAR MANIFEST DEL CACHE
+# ============================================================
+
+def cargar_cache_manifest():
+
+    if not CACHE_MANIFEST_FILE.exists():
+
+        return {}
+
+    try:
+
+        with CACHE_MANIFEST_FILE.open(
+            "r",
+            encoding="utf-8"
+        ) as archivo:
+
+            datos = json.load(
+                archivo
+            )
+
+        if isinstance(
+            datos,
+            dict
+        ):
+
+            return datos
+
+    except Exception:
+
+        pass
+
+    return {}
+
+
+# ============================================================
+# GUARDAR MANIFEST DEL CACHE
+# ============================================================
+
+def guardar_cache_manifest(
+    manifest
+):
+
+    CACHE_MANIFEST_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    with CACHE_MANIFEST_FILE.open(
+        "w",
+        encoding="utf-8"
+    ) as archivo:
+
+        json.dump(
+            manifest,
+            archivo,
+            indent=4,
+            ensure_ascii=False
+        )
+
+
+# ============================================================
+# CLAVE DE PROPIEDAD PARA CACHE
+# ============================================================
+
+def obtener_cache_property_key(
+    property_name
+):
+
+    return (
+        normalizar_texto(
+            property_name
+        )
+    )
+
+
+# ============================================================
 # RUTA DE IMAGEN EN CACHE
 # ============================================================
 
@@ -876,8 +961,16 @@ def descargar_imagen_desde_url(
 #
 # Si existe cache:
 #
-#     utiliza las imágenes disponibles
-#     y descarga solamente las faltantes.
+#     valida cada imagen contra Google Drive.
+#
+#     Si ID y modifiedTime no cambiaron:
+#         utiliza cache.
+#
+#     Si cambió el ID:
+#         descarga únicamente la nueva imagen.
+#
+#     Si cambió modifiedTime:
+#         actualiza únicamente esa imagen.
 #
 # Si NO existe cache:
 #
@@ -897,16 +990,26 @@ def preparar_imagenes_flyers(
 
     _IMAGE_PREPARATION_STATS = {
         "cache": 0,
+        "new": 0,
+        "updated": 0,
         "drive": 0,
         "failed": []
     }
 
     # ========================================================
-    # DETECTAR SI CACHE EXISTÍA
+    # DETECTAR CACHE
     # ========================================================
 
     cache_existia = (
         CACHE_IMAGES_DIR.exists()
+    )
+
+    manifest_existia = (
+        CACHE_MANIFEST_FILE.exists()
+    )
+
+    manifest = (
+        cargar_cache_manifest()
     )
 
     print(
@@ -927,10 +1030,24 @@ def preparar_imagenes_flyers(
             "Cache encontrada."
         )
 
-        print(
-            "Se utilizarán imágenes locales "
-            "y solo se descargarán las faltantes."
-        )
+        if manifest_existia:
+
+            print(
+                "Validando imágenes con "
+                "Google Drive..."
+            )
+
+        else:
+
+            print(
+                "Cache anterior encontrada "
+                "sin manifest."
+            )
+
+            print(
+                "Se reutilizarán las imágenes "
+                "válidas y se creará el manifest."
+            )
 
     else:
 
@@ -954,31 +1071,11 @@ def preparar_imagenes_flyers(
 
     registros = []
 
-    urls_vistas = set()
+    propiedades_vistas = set()
 
     for grupo in grupos:
 
         for _, fila in grupo.iterrows():
-
-            url = str(
-                fila.get(
-                    "image_drive_url",
-                    ""
-                )
-                or ""
-            ).strip()
-
-            if not url:
-
-                continue
-
-            if url in urls_vistas:
-
-                continue
-
-            urls_vistas.add(
-                url
-            )
 
             property_name = str(
                 fila.get(
@@ -988,13 +1085,81 @@ def preparar_imagenes_flyers(
                 or ""
             ).strip()
 
+            url = str(
+                fila.get(
+                    "image_drive_url",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            file_id = str(
+                fila.get(
+                    "image_drive_id",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            modified_time = str(
+                fila.get(
+                    "image_modified_time",
+                    ""
+                )
+                or ""
+            ).strip()
+
+            # ------------------------------------------------
+            # FALLBACK PARA DATASETS ANTIGUOS
+            # ------------------------------------------------
+
+            if not file_id:
+
+                file_id = (
+                    extraer_drive_file_id(
+                        url
+                    )
+                    or ""
+                )
+
+            if (
+                not property_name
+                or not url
+                or not file_id
+            ):
+
+                continue
+
+            property_key = (
+                obtener_cache_property_key(
+                    property_name
+                )
+            )
+
+            if property_key in propiedades_vistas:
+
+                continue
+
+            propiedades_vistas.add(
+                property_key
+            )
+
             registros.append(
                 {
                     "property":
                         property_name,
 
+                    "property_key":
+                        property_key,
+
                     "url":
-                        url
+                        url,
+
+                    "file_id":
+                        file_id,
+
+                    "modified_time":
+                        modified_time
                 }
             )
 
@@ -1023,34 +1188,122 @@ def preparar_imagenes_flyers(
             ]
         )
 
+        property_key = (
+            registro[
+                "property_key"
+            ]
+        )
+
         url = (
             registro[
                 "url"
             ]
         )
 
+        file_id = (
+            registro[
+                "file_id"
+            ]
+        )
+
+        modified_time = (
+            registro[
+                "modified_time"
+            ]
+        )
+
         imagen = None
 
+        entrada_manifest = (
+            manifest.get(
+                property_key
+            )
+        )
+
+        ruta_cache_actual = (
+            CACHE_IMAGES_DIR /
+            f"{file_id}.jpg"
+        )
+
+        estado_imagen = "new"
+
         # ====================================================
-        # MEMORIA
+        # DETERMINAR ESTADO
         # ====================================================
 
-        if url in _IMAGE_CACHE_MEMORY:
+        if entrada_manifest:
 
-            imagen = (
-                _IMAGE_CACHE_MEMORY[
-                    url
-                ]
+            old_file_id = str(
+                entrada_manifest.get(
+                    "file_id",
+                    ""
+                )
+                or ""
+            )
+
+            old_modified_time = str(
+                entrada_manifest.get(
+                    "modified_time",
+                    ""
+                )
+                or ""
+            )
+
+            # ------------------------------------------------
+            # MISMO ID
+            # ------------------------------------------------
+
+            if old_file_id == file_id:
+
+                if (
+                    modified_time
+                    and old_modified_time
+                    and modified_time
+                    != old_modified_time
+                ):
+
+                    estado_imagen = (
+                        "updated"
+                    )
+
+                else:
+
+                    estado_imagen = (
+                        "cache"
+                    )
+
+            # ------------------------------------------------
+            # ID DIFERENTE
+            # ------------------------------------------------
+
+            else:
+
+                estado_imagen = (
+                    "updated"
+                )
+
+        # ====================================================
+        # CACHE ANTIGUO SIN MANIFEST
+        # ====================================================
+        #
+        # Si tenemos físicamente el archivo cuyo nombre
+        # coincide con el ID actual de Drive, podemos
+        # reutilizarlo y registrar el manifest sin
+        # volver a descargarlo.
+        #
+        # ====================================================
+
+        elif ruta_cache_actual.exists():
+
+            estado_imagen = (
+                "cache"
             )
 
         # ====================================================
-        # CACHE LOCAL
+        # USAR CACHE
         # ====================================================
 
-        if (
-            imagen is None
-            and cache_existia
-        ):
+        if estado_imagen == "cache":
 
             imagen = (
                 cargar_imagen_desde_cache(
@@ -1064,8 +1317,17 @@ def preparar_imagenes_flyers(
                     "cache"
                 ] += 1
 
+            else:
+
+                # Archivo faltante o dañado.
+                # Lo tratamos como actualización.
+
+                estado_imagen = (
+                    "updated"
+                )
+
         # ====================================================
-        # GOOGLE DRIVE
+        # DESCARGAR NUEVA / ACTUALIZADA
         # ====================================================
 
         if imagen is None:
@@ -1087,7 +1349,54 @@ def preparar_imagenes_flyers(
                     "drive"
                 ] += 1
 
-            except Exception:
+                if estado_imagen == "updated":
+
+                    _IMAGE_PREPARATION_STATS[
+                        "updated"
+                    ] += 1
+
+                else:
+
+                    _IMAGE_PREPARATION_STATS[
+                        "new"
+                    ] += 1
+
+                # ============================================
+                # ELIMINAR VERSIÓN VIEJA
+                # ============================================
+
+                if entrada_manifest:
+
+                    old_file_id = str(
+                        entrada_manifest.get(
+                            "file_id",
+                            ""
+                        )
+                        or ""
+                    )
+
+                    if (
+                        old_file_id
+                        and old_file_id
+                        != file_id
+                    ):
+
+                        ruta_anterior = (
+                            CACHE_IMAGES_DIR /
+                            f"{old_file_id}.jpg"
+                        )
+
+                        if ruta_anterior.exists():
+
+                            try:
+
+                                ruta_anterior.unlink()
+
+                            except Exception:
+
+                                pass
+
+            except Exception as error:
 
                 _IMAGE_PREPARATION_STATS[
                     "failed"
@@ -1097,12 +1406,15 @@ def preparar_imagenes_flyers(
                             property_name,
 
                         "url":
-                            url
+                            url,
+
+                        "error":
+                            str(error)
                     }
                 )
 
         # ====================================================
-        # GUARDAR EN MEMORIA
+        # GUARDAR EN MEMORIA Y MANIFEST
         # ====================================================
 
         if imagen is not None:
@@ -1112,6 +1424,26 @@ def preparar_imagenes_flyers(
             ] = imagen
 
             exitosas += 1
+
+            manifest[
+                property_key
+            ] = {
+
+                "property":
+                    property_name,
+
+                "file_id":
+                    file_id,
+
+                "modified_time":
+                    modified_time,
+
+                "cache_file":
+                    f"{file_id}.jpg",
+
+                "drive_url":
+                    url
+            }
 
         # ====================================================
         # ACTUALIZAR MISMA LÍNEA
@@ -1123,6 +1455,14 @@ def preparar_imagenes_flyers(
             end="",
             flush=True
         )
+
+    # ========================================================
+    # GUARDAR MANIFEST
+    # ========================================================
+
+    guardar_cache_manifest(
+        manifest
+    )
 
     # ========================================================
     # RESULTADO
@@ -1169,6 +1509,18 @@ def preparar_imagenes_flyers(
         ]
     )
 
+    nuevas = (
+        _IMAGE_PREPARATION_STATS[
+            "new"
+        ]
+    )
+
+    actualizadas = (
+        _IMAGE_PREPARATION_STATS[
+            "updated"
+        ]
+    )
+
     descargadas = (
         _IMAGE_PREPARATION_STATS[
             "drive"
@@ -1177,59 +1529,30 @@ def preparar_imagenes_flyers(
 
     print()
 
-    if not cache_existia:
+    print(
+        f"Desde cache: "
+        f"{usadas_cache}"
+    )
 
-        print(
-            "Modo imágenes: "
-            "Google Drive → Cache local"
-        )
+    print(
+        f"Nuevas: "
+        f"{nuevas}"
+    )
 
-        print(
-            f"Descargadas desde Drive: "
-            f"{descargadas}"
-        )
+    print(
+        f"Actualizadas: "
+        f"{actualizadas}"
+    )
 
-    elif (
-        usadas_cache > 0
-        and descargadas > 0
-    ):
+    print(
+        f"Descargadas desde Drive: "
+        f"{descargadas}"
+    )
 
-        print(
-            "Modo imágenes: "
-            "Cache local + Google Drive"
-        )
-
-        print(
-            f"Desde cache: "
-            f"{usadas_cache}"
-        )
-
-        print(
-            f"Descargadas nuevas: "
-            f"{descargadas}"
-        )
-
-    elif (
-        usadas_cache > 0
-        and descargadas == 0
-    ):
-
-        print(
-            "Modo imágenes: "
-            "Solo cache local"
-        )
-
-        print(
-            f"Desde cache: "
-            f"{usadas_cache}"
-        )
-
-    else:
-
-        print(
-            "Modo imágenes: "
-            "Google Drive"
-        )
+    print(
+        f"Descargas fallidas: "
+        f"{len(failed)}"
+    )
 
 # ============================================================
 # PLACEHOLDER
@@ -1389,38 +1712,14 @@ def dibujar_location(
         FONT_SIZE_LOCATION
     )
 
+    font_location = (
+        FONT_MONTSERRAT_BOLD
+    )
+
     font = cargar_fuente(
-        FONT_GARET_BOLD,
+        font_location,
         font_size
     )
-
-    # ========================================================
-    # ALTURA DE REFERENCIA
-    # ========================================================
-    #
-    # Guardamos la altura que tendría Location con
-    # FONT_SIZE_LOCATION original.
-    #
-    # Si posteriormente reducimos la fuente,
-    # compensaremos verticalmente para mantener
-    # el mismo centro visual.
-    #
-    # ========================================================
-
-    font_referencia = cargar_fuente(
-        FONT_GARET_BOLD,
-        FONT_SIZE_LOCATION
-    )
-
-    _, altura_referencia = (
-        medir_texto(
-            draw,
-            "Ag",
-            font_referencia
-        )
-    )
-
-    ajuste_fuente_y = 0
 
     # ========================================================
     # PALABRA ÚNICA MUY LARGA
@@ -1433,6 +1732,11 @@ def dibujar_location(
     # Como no existe un espacio donde hacer salto de línea,
     # reducimos automáticamente el tamaño de fuente
     # hasta que entre dentro de max_width.
+    #
+    # Se mantiene siempre la misma fuente.
+    #
+    # El tamaño se reduce de 1 en 1 para utilizar
+    # el tamaño más grande posible que pueda entrar.
     #
     # ========================================================
 
@@ -1459,7 +1763,7 @@ def dibujar_location(
             font_size -= 1
 
             font = cargar_fuente(
-                FONT_GARET_BOLD,
+                font_location,
                 font_size
             )
 
@@ -1469,44 +1773,6 @@ def dibujar_location(
                     texto,
                     font
                 )
-            )
-
-        # ========================================================
-        # COMPENSACIÓN VERTICAL POR CAMBIO DE FUENTE
-        # ========================================================
-        #
-        # Solo aplicamos compensación si realmente
-        # FONT_SIZE_LOCATION fue reducido.
-        #
-        # Si la fuente mantiene su tamaño original,
-        # ajuste_fuente_y permanece en 0.
-        #
-        # ========================================================
-
-        if font_size < FONT_SIZE_LOCATION:
-
-            bbox_referencia = draw.textbbox(
-                (
-                    0,
-                    0
-                ),
-                texto,
-                font=font_referencia
-            )
-
-            bbox_actual = draw.textbbox(
-                (
-                    0,
-                    0
-                ),
-                texto,
-                font=font
-            )
-
-            ajuste_fuente_y = (
-                bbox_referencia[3]
-                - bbox_actual[3]
-                - 2
             )
 
     # ========================================================
@@ -1543,6 +1809,15 @@ def dibujar_location(
     #
     # queda centrado verticalmente respecto
     # a donde estaría "Monroe" en una sola línea.
+    #
+    # IMPORTANTE:
+    #
+    # El tamaño de la fuente NO modifica el punto Y.
+    #
+    # anchor="lt" hace que line_y represente
+    # directamente la esquina superior izquierda
+    # visible del texto.
+    #
     # ========================================================
 
     cantidad_lineas = len(
@@ -1569,7 +1844,6 @@ def dibujar_location(
         y
         - offset_vertical
         - extra_up
-        + ajuste_fuente_y
     )
 
     # ========================================================
@@ -1586,11 +1860,40 @@ def dibujar_location(
             * line_height
         )
 
+        # ====================================================
+        # AJUSTE ENTRE DOS LINEAS
+        # ====================================================
+        #
+        # Si Location ocupa 2 líneas,
+        # podemos acercar únicamente la primera línea
+        # hacia la segunda.
+        #
+        # Ejemplo:
+        #
+        # Center
+        # Monroe
+        #
+        # Descomentar si queremos reducir
+        # el espacio entre ambas líneas.
+        #
+        # ====================================================
+
+        # if (
+        #     cantidad_lineas > 1
+        #     and indice == 0
+        # ):
+        #
+        #     line_y += 2  # Editado por mí
+
         line_w, _ = medir_texto(
             draw,
             linea,
             font
         )
+
+        # ====================================================
+        # ALINEACIÓN HORIZONTAL
+        # ====================================================
 
         if align == "right":
 
@@ -1604,6 +1907,21 @@ def dibujar_location(
 
             line_x = x
 
+        # ====================================================
+        # DIBUJAR TEXTO
+        # ========================================================
+        #
+        # anchor="lt"
+        #
+        # l = left
+        # t = top
+        #
+        # Esto garantiza que line_y represente
+        # siempre la parte superior del texto,
+        # independientemente del tamaño de fuente.
+        #
+        # ====================================================
+
         draw.text(
             (
                 line_x,
@@ -1613,7 +1931,8 @@ def dibujar_location(
             font=font,
             fill=hex_to_rgb(
                 LOCATION_TEXT_COLOR
-            )
+            ),
+            anchor="lt"
         )
 
 
@@ -1780,8 +2099,16 @@ def dibujar_badge_for_rent(
     # ========================================================
     # PEGAR SOBRE EL FLYER
     # ========================================================
+    #
+    # Pegamos dos veces la misma capa para reforzar
+    # ligeramente el grosor visual del texto "For Rent".
+    #
+    # La segunda composición aumenta principalmente
+    # la opacidad de los bordes suavizados de la fuente.
+    #
+    # ========================================================
 
-    draw._image.alpha_composite(
+    canvas.alpha_composite(
         texto_layer,
         (
             int(x),
@@ -1833,7 +2160,7 @@ def dibujar_price_box(
 
     font = (
         cargar_fuente(
-            FONT_GARET_REGULAR,
+            FONT_MONTSERRAT_MEDIUM,
             FONT_SIZE_PRICE
         )
     )
@@ -1853,6 +2180,7 @@ def dibujar_price_box(
             - text_w
         )
         / 2
+        + 1
     )
 
     text_y = (
@@ -1862,7 +2190,7 @@ def dibujar_price_box(
             - text_h
         )
         / 2
-        - 3
+        - 1
     )
 
     draw.text(

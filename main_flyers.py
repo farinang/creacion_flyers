@@ -14,6 +14,33 @@ from utils.flyer import (
 )
 
 
+# ============================================================
+# CARGAR CSV DE FORMA SEGURA
+# ============================================================
+
+def cargar_csv_seguro(
+    archivo
+):
+
+    try:
+
+        df = pd.read_csv(
+            archivo,
+            encoding="utf-8-sig"
+        )
+
+        return df
+
+    except pd.errors.EmptyDataError:
+
+        print(
+            f"Archivo vacío: "
+            f"{archivo}"
+        )
+
+        return pd.DataFrame()
+
+
 def main():
 
     print("\n" + "=" * 100)
@@ -26,14 +53,12 @@ def main():
 
     print("\nCargando datasets...")
 
-    current_drive = pd.read_csv(
-        CURRENT_DRIVE_FILE,
-        encoding="utf-8-sig"
+    current_drive = cargar_csv_seguro(
+        CURRENT_DRIVE_FILE
     )#.iloc[:4]
 
-    archived_drive = pd.read_csv(
-        ARCHIVED_DRIVE_FILE,
-        encoding="utf-8-sig"
+    archived_drive = cargar_csv_seguro(
+        ARCHIVED_DRIVE_FILE
     )
 
     print(

@@ -83,7 +83,8 @@ def listar_carpeta(
                     "files("
                     "id,"
                     "name,"
-                    "mimeType"
+                    "mimeType,"
+                    "modifiedTime"
                     ")"
                 ),
                 pageSize=1000,
