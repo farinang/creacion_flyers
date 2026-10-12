@@ -410,6 +410,10 @@ def match_current_drive(
                 f"- {property_name}"
             )
 
+        print()
+        print("[ERROR] Se detiene el programa para que el usuario pueda agregar las imágenes faltantes.")
+        exit(1)
+
 
     print(
         f"\nArchivo generado: "
