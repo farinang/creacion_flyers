@@ -23,6 +23,7 @@ from config.settings import (
     FLYER_FILE_PREFIX,
     FLYER_FORMAT,
     FLYER_TEMPLATE_FILE,
+    CUSTOM_FLYERS_DIRECTORY_FILE,
 
     BED_ICON_FILE,
     BATH_ICON_FILE,
@@ -3370,6 +3371,75 @@ def dibujar_propiedad(
             ]
         )
 
+# ============================================================
+# DIRECTORIO PERSONALIZADO OPCIONAL
+# ============================================================
+
+def obtener_directorio_personalizado():
+
+    # ========================================================
+    # SI NO EXISTE EL TXT
+    # ========================================================
+
+    if not CUSTOM_FLYERS_DIRECTORY_FILE.exists():
+
+        return None
+
+    # ========================================================
+    # LEER ARCHIVO
+    # ========================================================
+
+    lineas = (
+        CUSTOM_FLYERS_DIRECTORY_FILE
+        .read_text(
+            encoding="utf-8"
+        )
+        .splitlines()
+    )
+
+    # ========================================================
+    # BUSCAR PRIMERA LÍNEA VÁLIDA
+    # ========================================================
+    #
+    # Ignoramos:
+    #
+    # - líneas vacías
+    # - comentarios que comiencen con #
+    #
+    # ========================================================
+
+    for linea in lineas:
+
+        linea = linea.strip()
+
+        if not linea:
+
+            continue
+
+        if linea.startswith("#"):
+
+            continue
+
+        directorio = Path(
+            linea
+        )
+
+        # ====================================================
+        # CREAR CARPETA SI NO EXISTE
+        # ====================================================
+
+        directorio.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        return directorio
+
+    # ========================================================
+    # NO HAY DIRECTORIO CONFIGURADO
+    # ========================================================
+
+    return None
 
 # ============================================================
 # GENERAR 1 FLYER
@@ -3420,11 +3490,37 @@ def generar_flyer(
         )
     )
 
+    # ========================================================
+    # GUARDAR EN OUTPUT NORMAL
+    # ========================================================
+
     flyer.save(
         archivo,
         format=FLYER_FORMAT,
         quality=100
     )
+
+    # ========================================================
+    # GUARDAR COPIA EN DIRECTORIO PERSONALIZADO
+    # ========================================================
+
+    directorio_personalizado = (
+        obtener_directorio_personalizado()
+    )
+
+    if directorio_personalizado is not None:
+
+        archivo_personalizado = (
+            directorio_personalizado
+            /
+            archivo.name
+        )
+
+        flyer.save(
+            archivo_personalizado,
+            format=FLYER_FORMAT,
+            quality=100
+        )
 
     return archivo
 

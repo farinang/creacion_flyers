@@ -30,6 +30,15 @@ ICONS_DIR = ASSETS_DIR / "icons"
 
 FLYERS_DIR = OUTPUT_DIR / "flyers"
 
+# ============================================================
+# DIRECTORIO PERSONALIZADO OPCIONAL
+# ============================================================
+
+CUSTOM_FLYERS_DIRECTORY_FILE = (
+    BASE_DIR /
+    "directorio.txt"
+)
+
 
 # ============================================================
 # CREAR CARPETAS SI NO EXISTEN

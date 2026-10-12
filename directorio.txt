@@ -1,0 +1,15 @@
+# ============================================================
+# DIRECTORIO PERSONALIZADO PARA FLYERS
+# ============================================================
+#
+# Opcional.
+#
+# Si quieres guardar una copia adicional de los flyers,
+# escribe aquí la ruta de la carpeta.
+#
+# Si no quieres utilizar una carpeta adicional,
+# deja este archivo sin ninguna línea que no empiece con #.
+#
+# Ejemplo:
+# C:\Users\USUARIO\Desktop\Flyers
+
