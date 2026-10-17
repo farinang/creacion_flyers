@@ -4,6 +4,9 @@ credentials/
 # Output
 output/flyers/
 
+# Cache
+cache/
+
 # Respaldo
 respaldo/
 

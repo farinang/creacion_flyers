@@ -52,7 +52,6 @@ def normalizar_texto(texto):
 # ============================================================
 # LOCATION VISUAL
 # ============================================================
-
 def obtener_display_location(
     location,
     details
@@ -82,17 +81,15 @@ def obtener_display_location(
     )
 
     # ========================================================
-    # MONROE TRAILS
+    # CENTRAL VALLEY / HARRIMAN
     # ========================================================
-    #
-    # En Monday puede existir como ubicación operativa:
-    #
-    # Monroe Trails
-    #
-    # Pero comercialmente en el flyer se muestra:
-    #
-    # Monroe
-    #
+
+    if location_norm == "central valley/harriman":
+
+        return "Central Valley"
+
+    # ========================================================
+    # MONROE TRAILS
     # ========================================================
 
     if location_norm == "monroe trails":
@@ -101,12 +98,6 @@ def obtener_display_location(
 
     # ========================================================
     # MONROE / CENTER MONROE
-    # ========================================================
-    #
-    # Center Monroe no viene necesariamente como Location.
-    #
-    # Se detecta desde Details.
-    #
     # ========================================================
 
     if location_norm == "monroe":
@@ -125,7 +116,6 @@ def obtener_display_location(
     # ========================================================
 
     return location_text
-
 
 # ============================================================
 # FORMATEAR PRECIO
