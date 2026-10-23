@@ -413,45 +413,45 @@ def agregar_columnas_normalizadas(
 
     # ========================================================
     # CASO ESPECIAL:
-    # BROADWAY / PORT EWEN
+    # KINGSTON / PORT EWEN
     # ========================================================
     #
-    # En Monday estas propiedades pueden estar dentro
+    # En Monday algunas propiedades aparecen dentro
     # de la Location operativa:
     #
     #     Kingston
     #
-    # Pero físicamente las imágenes se encuentran
-    # dentro de la carpeta:
+    # Pero su dirección real contiene:
     #
     #     Port Ewen
     #
-    # Por lo tanto, únicamente para estas Properties
+    # Y las imágenes se encuentran físicamente dentro
+    # de la carpeta:
+    #
+    #     Port Ewen
+    #
+    # Por lo tanto, únicamente para hacer match con Drive,
     # utilizamos Port Ewen como location_norm temporal.
     #
     # Esto NO modifica:
     #
     #     - Location original de Monday
-    #     - display_location
+    #     - display_location del flyer
     #     - CSV original
+    #     - property original
     #
     # Solo afecta el match con Google Drive.
     #
     # ========================================================
 
     mascara_port_ewen = (
-        df["property"]
+        df["Location"]
         .fillna("")
         .astype(str)
-        .str.match(
-            (
-                r"^\s*"
-                r"(186|188|190)"
-                r"\s+broadway"
-                r"\s*-?\s*unit"
-            ),
-            case=False,
-            na=False
+        .str.strip()
+        .str.lower()
+        .eq(
+            "kingston"
         )
         &
         df["property"]
@@ -493,67 +493,6 @@ def match_current_drive(
             current
         )
     )
-
-    ##################################################
-    print("\n" + "=" * 100)
-    print("DEBUG BROADWAY MONDAY")
-    print("=" * 100)
-
-    debug_broadway_monday = current_match[
-        current_match["property"]
-        .astype(str)
-        .str.contains(
-            "Broadway",
-            case=False,
-            regex=False,
-            na=False
-        )
-    ]
-
-    print(
-        debug_broadway_monday[
-            [
-                "property",
-                "Location",
-                "location_norm",
-                "property_norm"
-            ]
-        ]
-        .to_string(
-            index=False
-        )
-    )
-
-    print("\n" + "=" * 100)
-    print("DEBUG BROADWAY DRIVE")
-    print("=" * 100)
-
-    debug_broadway_drive = drive_index[
-        drive_index["property_drive"]
-        .astype(str)
-        .str.contains(
-            "Broadway",
-            case=False,
-            regex=False,
-            na=False
-        )
-    ]
-
-    print(
-        debug_broadway_drive[
-            [
-                "property_drive",
-                "location_drive",
-                "location_norm",
-                "property_norm"
-            ]
-        ]
-        .to_string(
-            index=False
-        )
-    )
-
-    #########################################################
 
     resultado = (
         current_match.merge(

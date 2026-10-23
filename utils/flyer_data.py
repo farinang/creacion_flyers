@@ -52,9 +52,11 @@ def normalizar_texto(texto):
 # ============================================================
 # LOCATION VISUAL
 # ============================================================
+
 def obtener_display_location(
     location,
-    details
+    details,
+    property_name
 ):
 
     location_text = (
@@ -74,6 +76,15 @@ def obtener_display_location(
         .lower()
     )
 
+    property_text = (
+        str(
+            property_name
+            or ""
+        )
+        .strip()
+        .lower()
+    )
+
     location_norm = (
         location_text
         .lower()
@@ -81,12 +92,37 @@ def obtener_display_location(
     )
 
     # ========================================================
-    # CENTRAL VALLEY / HARRIMAN
+    # KINGSTON / PORT EWEN
+    # ========================================================
+    #
+    # En Monday estas propiedades aparecen dentro
+    # de la Location operativa:
+    #
+    #     Kingston
+    #
+    # Pero la dirección real de la Property contiene:
+    #
+    #     Port Ewen
+    #
+    # Para el flyer deben mostrarse como:
+    #
+    #     Port Ewen
+    #
+    # Esto SOLO modifica display_location.
+    #
+    # NO modifica:
+    #     - Location original de Monday
+    #     - lógica de match con Drive
+    #     - property original
+    #
     # ========================================================
 
-    if location_norm == "central valley/harriman":
+    if (
+        location_norm == "kingston"
+        and "port ewen" in property_text
+    ):
 
-        return "Central Valley"
+        return "Port Ewen"
 
     # ========================================================
     # MONROE TRAILS
@@ -114,8 +150,17 @@ def obtener_display_location(
     # ========================================================
     # RESTO DE LOCATIONS
     # ========================================================
+    #
+    # Central Valley y Harriman ahora existen como
+    # Locations independientes en Monday.
+    #
+    # Por lo tanto, ya no existe ninguna transformación
+    # especial entre ambas.
+    #
+    # ========================================================
 
     return location_text
+
 
 # ============================================================
 # FORMATEAR PRECIO
@@ -278,6 +323,10 @@ def preparar_dataset_flyer(
             ),
             row.get(
                 "Details",
+                ""
+            ),
+            row.get(
+                "property",
                 ""
             )
         ),

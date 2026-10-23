@@ -1717,13 +1717,13 @@ def dibujar_location(
 
     LOCATION_Y_OFFSETS = {
         "Highland": -3,
-        "Kingston": -3,
         "Chester": -2,
         "Middletown": -2,
         "Newburgh": -2,
         "Washingtonville": -2,
         "Walden": -2,
         "Cornwall": -2,
+        "Harriman": -3,
     }
 
     # ========================================================
