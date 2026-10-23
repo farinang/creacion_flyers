@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 
 from config.settings import (
@@ -63,6 +65,137 @@ def normalizar_location_match(
         LOCATION_MATCH_ALIASES.get(
             location_norm,
             location_norm
+        )
+    )
+
+
+# ============================================================
+# NORMALIZAR PROPERTY PARA MATCH
+# ============================================================
+#
+# La mayoría de Properties utilizan su nombre completo
+# de Monday para hacer match directo con Google Drive.
+#
+# Existe un caso especial en Port Ewen:
+#
+# Monday puede tener varias unidades físicas:
+#
+#     186 Broadway-Unit 2A-, Port Ewen, NY 12466
+#     186 Broadway-Unit 2B-, Port Ewen, NY 12466
+#     188 Broadway-Unit 2A-, Port Ewen, NY 12466
+#     190 Broadway-Unit 2A-, Port Ewen, NY 12466
+#
+# Pero para las imágenes del flyer se utilizan únicamente
+# dos carpetas representativas en Drive:
+#
+#     186 Broadway-Unit, Port Ewen, NY 12466
+#     190 Broadway-Unit, Port Ewen, NY 12466
+#
+# Reglas:
+#
+#     - Todo lo que exista después de "Unit" y antes de
+#       la primera coma se ignora únicamente para el match.
+#
+#     - 186 y 188 comparten la misma imagen.
+#       Por lo tanto, 188 se normaliza como 186.
+#
+#     - 190 conserva su propia imagen.
+#
+# IMPORTANTE:
+#
+# Esta función SOLO modifica la clave temporal utilizada
+# para hacer match con Drive.
+#
+# NO modifica:
+#     - property original de Monday
+#     - CSV original de inventario
+#     - datos propios de cada unidad
+#
+# ============================================================
+
+def normalizar_property_match(
+    property_name
+):
+
+    property_text = (
+        str(
+            property_name
+            or ""
+        )
+        .strip()
+    )
+
+    # --------------------------------------------------------
+    # CASO ESPECIAL:
+    # 186 / 188 / 190 BROADWAY - PORT EWEN
+    # --------------------------------------------------------
+
+    match = re.match(
+        (
+            r"^\s*"
+            r"(186|188|190)"
+            r"\s+broadway"
+            r"\s*-?\s*unit"
+            r"\b"
+            r"[^,]*"
+            r","
+            r"\s*(.+)$"
+        ),
+        property_text,
+        flags=re.IGNORECASE
+    )
+
+    if match:
+
+        numero = (
+            match.group(1)
+        )
+
+        resto_direccion = (
+            match.group(2)
+            .strip()
+        )
+
+        # El caso especial aplica únicamente
+        # a las propiedades de Port Ewen.
+
+        if (
+            "port ewen"
+            in resto_direccion.lower()
+        ):
+
+            # 186 y 188 utilizan la misma
+            # carpeta / imagen de Drive.
+
+            if numero in {
+                "186",
+                "188"
+            }:
+
+                numero = "186"
+
+            property_match = (
+                f"{numero} Broadway-Unit, "
+                f"{resto_direccion}"
+            )
+
+            return (
+                normalizar_texto(
+                    property_match
+                )
+            )
+
+    # --------------------------------------------------------
+    # RESTO DE PROPERTIES
+    # --------------------------------------------------------
+    #
+    # Conservamos exactamente la lógica existente.
+    #
+    # --------------------------------------------------------
+
+    return (
+        normalizar_texto(
+            property_text
         )
     )
 
@@ -204,7 +337,7 @@ def construir_indice_drive(
                         ),
 
                     "property_norm":
-                        normalizar_texto(
+                        normalizar_property_match(
                             property_name
                         ),
 
@@ -254,6 +387,10 @@ def agregar_columnas_normalizadas(
 
     df = df.copy()
 
+    # ========================================================
+    # LOCATION NORMALIZADA
+    # ========================================================
+
     df["location_norm"] = (
         df["Location"]
         .fillna("")
@@ -262,12 +399,77 @@ def agregar_columnas_normalizadas(
         )
     )
 
+    # ========================================================
+    # PROPERTY NORMALIZADA
+    # ========================================================
+
     df["property_norm"] = (
         df["property"]
         .fillna("")
         .apply(
-            normalizar_texto
+            normalizar_property_match
         )
+    )
+
+    # ========================================================
+    # CASO ESPECIAL:
+    # BROADWAY / PORT EWEN
+    # ========================================================
+    #
+    # En Monday estas propiedades pueden estar dentro
+    # de la Location operativa:
+    #
+    #     Kingston
+    #
+    # Pero físicamente las imágenes se encuentran
+    # dentro de la carpeta:
+    #
+    #     Port Ewen
+    #
+    # Por lo tanto, únicamente para estas Properties
+    # utilizamos Port Ewen como location_norm temporal.
+    #
+    # Esto NO modifica:
+    #
+    #     - Location original de Monday
+    #     - display_location
+    #     - CSV original
+    #
+    # Solo afecta el match con Google Drive.
+    #
+    # ========================================================
+
+    mascara_port_ewen = (
+        df["property"]
+        .fillna("")
+        .astype(str)
+        .str.match(
+            (
+                r"^\s*"
+                r"(186|188|190)"
+                r"\s+broadway"
+                r"\s*-?\s*unit"
+            ),
+            case=False,
+            na=False
+        )
+        &
+        df["property"]
+        .fillna("")
+        .astype(str)
+        .str.contains(
+            "Port Ewen",
+            case=False,
+            regex=False,
+            na=False
+        )
+    )
+
+    df.loc[
+        mascara_port_ewen,
+        "location_norm"
+    ] = normalizar_location_match(
+        "Port Ewen"
     )
 
     return df
@@ -291,6 +493,67 @@ def match_current_drive(
             current
         )
     )
+
+    ##################################################
+    print("\n" + "=" * 100)
+    print("DEBUG BROADWAY MONDAY")
+    print("=" * 100)
+
+    debug_broadway_monday = current_match[
+        current_match["property"]
+        .astype(str)
+        .str.contains(
+            "Broadway",
+            case=False,
+            regex=False,
+            na=False
+        )
+    ]
+
+    print(
+        debug_broadway_monday[
+            [
+                "property",
+                "Location",
+                "location_norm",
+                "property_norm"
+            ]
+        ]
+        .to_string(
+            index=False
+        )
+    )
+
+    print("\n" + "=" * 100)
+    print("DEBUG BROADWAY DRIVE")
+    print("=" * 100)
+
+    debug_broadway_drive = drive_index[
+        drive_index["property_drive"]
+        .astype(str)
+        .str.contains(
+            "Broadway",
+            case=False,
+            regex=False,
+            na=False
+        )
+    ]
+
+    print(
+        debug_broadway_drive[
+            [
+                "property_drive",
+                "location_drive",
+                "location_norm",
+                "property_norm"
+            ]
+        ]
+        .to_string(
+            index=False
+        )
+    )
+
+    #########################################################
 
     resultado = (
         current_match.merge(

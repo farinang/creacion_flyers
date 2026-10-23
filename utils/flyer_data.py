@@ -333,6 +333,302 @@ def preparar_dataset_flyer(
 
     return df
 
+
+# ============================================================
+# CONSOLIDAR PROPERTIES PARA FLYER
+# ============================================================
+#
+# Existen Properties de Monday que representan unidades
+# físicas diferentes, pero comercialmente deben ocupar
+# un solo item dentro del flyer porque comparten:
+#
+#     - misma tipología
+#     - misma información visual
+#     - misma imagen representativa
+#
+# Caso especial:
+#
+#     186 Broadway-Unit 2A-, Port Ewen, NY 12466
+#     186 Broadway-Unit 2B-, Port Ewen, NY 12466
+#     188 Broadway-Unit 2A-, Port Ewen, NY 12466
+#
+# se consideran un solo item visual:
+#
+#     186 / 188 Broadway
+#
+# Mientras:
+#
+#     190 Broadway-Unit ...
+#
+# se considera otro item independiente.
+#
+# IMPORTANTE:
+#
+# Esta consolidación ocurre SOLO dentro del dataset preparado
+# para el flyer.
+#
+# NO modifica:
+#     - Monday
+#     - inventario original
+#     - CSV fuente
+#     - property original fuera de este flujo
+#
+# Para CURRENT:
+#
+#     Se conserva la primera fila encontrada de cada grupo.
+#
+# Para ARCHIVED:
+#
+#     Se conserva la fila más reciente de cada grupo según:
+#
+#         1. Rented Date
+#         2. Last updated
+#
+# Esto evita perder la referencia temporal más útil cuando
+# varias unidades del mismo grupo fueron rentadas.
+#
+# ============================================================
+
+def obtener_flyer_property_key(
+    property_name
+):
+
+    property_text = (
+        str(
+            property_name
+            or ""
+        )
+        .strip()
+    )
+
+    # --------------------------------------------------------
+    # CASO ESPECIAL:
+    # 186 / 188 / 190 BROADWAY - PORT EWEN
+    # --------------------------------------------------------
+
+    match = re.match(
+        (
+            r"^\s*"
+            r"(186|188|190)"
+            r"\s+broadway"
+            r"\s*-?\s*unit"
+            r"\b"
+            r"[^,]*"
+            r","
+            r"\s*(.+)$"
+        ),
+        property_text,
+        flags=re.IGNORECASE
+    )
+
+    if match:
+
+        numero = (
+            match.group(1)
+        )
+
+        resto_direccion = (
+            match.group(2)
+            .strip()
+        )
+
+        # La regla especial aplica únicamente
+        # a las propiedades de Port Ewen.
+
+        if (
+            "port ewen"
+            in resto_direccion.lower()
+        ):
+
+            # 186 y 188 representan
+            # el mismo item del flyer.
+
+            if numero in {
+                "186",
+                "188"
+            }:
+
+                return (
+                    "port_ewen_broadway_186_188"
+                )
+
+            # 190 se mantiene como
+            # item independiente.
+
+            if numero == "190":
+
+                return (
+                    "port_ewen_broadway_190"
+                )
+
+    # --------------------------------------------------------
+    # RESTO DE PROPERTIES
+    # --------------------------------------------------------
+    #
+    # Cada Property conserva una clave única basada
+    # en su nombre normalizado.
+    #
+    # --------------------------------------------------------
+
+    return (
+        "property_"
+        + normalizar_texto(
+            property_text
+        )
+    )
+
+
+def consolidar_propiedades_flyer(
+    df
+):
+
+    if df is None or df.empty:
+
+        return df
+
+    df = df.copy()
+
+    # ========================================================
+    # CREAR CLAVE DE CONSOLIDACIÓN
+    # ========================================================
+
+    df[
+        "_flyer_property_key"
+    ] = (
+        df["property"]
+        .fillna("")
+        .apply(
+            obtener_flyer_property_key
+        )
+    )
+
+    # ========================================================
+    # IDENTIFICAR LISTING TYPE
+    # ========================================================
+
+    listing_type = ""
+
+    if "listing_type" in df.columns:
+
+        listing_type = (
+            str(
+                df[
+                    "listing_type"
+                ]
+                .iloc[0]
+                or ""
+            )
+            .strip()
+            .lower()
+        )
+
+    # ========================================================
+    # ARCHIVED
+    # ========================================================
+    #
+    # Si varias unidades del mismo grupo están Archived,
+    # priorizamos la referencia más reciente.
+    #
+    # ========================================================
+
+    if listing_type == "archived":
+
+        if "Rented Date" in df.columns:
+
+            df[
+                "_flyer_rented_date_sort"
+            ] = pd.to_datetime(
+                df["Rented Date"],
+                errors="coerce"
+            )
+
+        else:
+
+            df[
+                "_flyer_rented_date_sort"
+            ] = pd.NaT
+
+        if "Last updated" in df.columns:
+
+            df[
+                "_flyer_last_updated_sort"
+            ] = pd.to_datetime(
+                df["Last updated"],
+                errors="coerce"
+            )
+
+        else:
+
+            df[
+                "_flyer_last_updated_sort"
+            ] = pd.NaT
+
+        df = (
+            df.sort_values(
+                by=[
+                    "_flyer_property_key",
+                    "_flyer_rented_date_sort",
+                    "_flyer_last_updated_sort"
+                ],
+                ascending=[
+                    True,
+                    False,
+                    False
+                ],
+                kind="stable"
+            )
+        )
+
+    # ========================================================
+    # CONSOLIDAR
+    # ========================================================
+    #
+    # CURRENT:
+    #     conserva la primera fila.
+    #
+    # ARCHIVED:
+    #     después del orden anterior, conserva la más reciente.
+    #
+    # ========================================================
+
+    df = (
+        df.drop_duplicates(
+            subset=[
+                "_flyer_property_key"
+            ],
+            keep="first"
+        )
+    )
+
+    # ========================================================
+    # LIMPIAR COLUMNAS TEMPORALES
+    # ========================================================
+
+    columnas_temporales = [
+        "_flyer_property_key",
+        "_flyer_rented_date_sort",
+        "_flyer_last_updated_sort"
+    ]
+
+    df = (
+        df.drop(
+            columns=[
+                columna
+                for columna
+                in columnas_temporales
+                if columna
+                in df.columns
+            ]
+        )
+    )
+
+    return (
+        df.reset_index(
+            drop=True
+        )
+    )
+
+
 # ============================================================
 # LOCATION PARA ORDEN DE FLYERS
 # ============================================================
@@ -595,6 +891,31 @@ def crear_grupos_flyers(
         preparar_dataset_flyer(
             archived,
             "archived"
+        )
+    )
+
+    # ========================================================
+    # CONSOLIDAR PROPERTIES PARA FLYER
+    # ========================================================
+    #
+    # Casos como Broadway / Port Ewen pueden tener varias
+    # unidades físicas en Monday, pero deben ocupar un solo
+    # item visual dentro del flyer.
+    #
+    # La consolidación se realiza antes de ordenar y antes
+    # de calcular cuántos flyers son necesarios.
+    #
+    # ========================================================
+
+    current = (
+        consolidar_propiedades_flyer(
+            current
+        )
+    )
+
+    archived = (
+        consolidar_propiedades_flyer(
+            archived
         )
     )
 

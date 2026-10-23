@@ -1706,6 +1706,26 @@ def dibujar_location(
         .strip()
     )
 
+        # ========================================================
+    # AJUSTES VERTICALES ESPECIALES POR LOCATION
+    # ========================================================
+    #
+    # Valor negativo = subir
+    # Valor positivo = bajar
+    #
+    # ========================================================
+
+    LOCATION_Y_OFFSETS = {
+        "Highland": -3,
+        "Kingston": -3,
+        "Chester": -2,
+        "Middletown": -2,
+        "Newburgh": -2,
+        "Washingtonville": -2,
+        "Walden": -2,
+        "Cornwall": -2,
+    }
+
     # ========================================================
     # FUENTE BASE
     # ========================================================
@@ -1972,10 +1992,23 @@ def dibujar_location(
                 - text_height
             ) / 2
 
+            # ====================================================
+            # AJUSTE VERTICAL ESPECIAL POR LOCATION
+            # ====================================================
+
+            ajuste_especial_y = (
+                LOCATION_Y_OFFSETS.get(
+                    texto,
+                    0
+                )
+            )
+
             draw.text(
                 (
                     line_x,
-                    line_y + ajuste_y
+                    line_y
+                    + ajuste_y
+                    + ajuste_especial_y
                 ),
                 linea,
                 font=font,
