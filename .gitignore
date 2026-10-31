@@ -31,3 +31,6 @@ env/
 
 # Directorio
 directorio.txt
+
+# Flyers Debug
+output/flyers_debug/

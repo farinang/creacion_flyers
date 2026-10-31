@@ -20,6 +20,7 @@ from config.settings import (
     # ========================================================
 
     FLYERS_DIR,
+    FLYERS_DEBUG_DIR,
     FLYER_FILE_PREFIX,
     FLYER_FORMAT,
     FLYER_TEMPLATE_FILE,
@@ -170,6 +171,15 @@ from config.settings import (
     LOCATION_MAX_TEXT_WIDTH,
     LOCATION_MAX_LINES,
     LOCATION_MULTILINE_EXTRA_UP,
+
+    # ========================================================
+    # DEBUG PROPERTY
+    # ========================================================
+
+    DEBUG_PROPERTY_FONT_SIZE,
+    DEBUG_PROPERTY_BAR_HEIGHT,
+    DEBUG_PROPERTY_PADDING_X,
+    DEBUG_PROPERTY_MAX_LINES,
 
     # ========================================================
     # CACHE
@@ -2729,6 +2739,183 @@ def dibujar_rented_overlay(
 
 
 # ============================================================
+# PROPERTY DEBUG
+# ============================================================
+
+def partir_property_debug_en_lineas(
+    draw,
+    texto,
+    font,
+    max_width,
+    max_lines
+):
+
+    palabras = str(texto or "").strip().split()
+
+    if not palabras:
+        return []
+
+    lineas = []
+    actual = ""
+
+    for palabra in palabras:
+
+        prueba = (
+            palabra
+            if not actual
+            else f"{actual} {palabra}"
+        )
+
+        width, _ = medir_texto(
+            draw,
+            prueba,
+            font
+        )
+
+        if width <= max_width:
+
+            actual = prueba
+
+        else:
+
+            if actual:
+                lineas.append(actual)
+
+            actual = palabra
+
+    if actual:
+        lineas.append(actual)
+
+    if len(lineas) <= max_lines:
+        return lineas
+
+    lineas = lineas[:max_lines]
+
+    ultima = lineas[-1]
+
+    while ultima:
+
+        prueba = ultima + "..."
+
+        width, _ = medir_texto(
+            draw,
+            prueba,
+            font
+        )
+
+        if width <= max_width:
+            lineas[-1] = prueba
+            break
+
+        ultima = ultima[:-1].rstrip()
+
+    if not ultima:
+        lineas[-1] = "..."
+
+    return lineas
+
+
+def dibujar_property_debug(
+    canvas,
+    property_text,
+    image_x,
+    image_y
+):
+
+    property_text = str(
+        property_text
+        or ""
+    ).strip()
+
+    if not property_text:
+        return
+
+    overlay = Image.new(
+        "RGBA",
+        (
+            PROPERTY_IMAGE_WIDTH,
+            DEBUG_PROPERTY_BAR_HEIGHT
+        ),
+        (
+            255,
+            255,
+            255,
+            225
+        )
+    )
+
+    overlay_draw = ImageDraw.Draw(
+        overlay
+    )
+
+    font = cargar_fuente(
+        FONT_MONTSERRAT_MEDIUM,
+        DEBUG_PROPERTY_FONT_SIZE
+    )
+
+    max_width = (
+        PROPERTY_IMAGE_WIDTH
+        - DEBUG_PROPERTY_PADDING_X * 2
+    )
+
+    lineas = partir_property_debug_en_lineas(
+        draw=overlay_draw,
+        texto=property_text,
+        font=font,
+        max_width=max_width,
+        max_lines=DEBUG_PROPERTY_MAX_LINES
+    )
+
+    line_height = obtener_line_height(
+        overlay_draw,
+        font
+    )
+
+    total_height = (
+        len(lineas)
+        * line_height
+    )
+
+    start_y = (
+        DEBUG_PROPERTY_BAR_HEIGHT
+        - total_height
+    ) / 2
+
+    for indice, linea in enumerate(
+        lineas
+    ):
+
+        overlay_draw.text(
+            (
+                DEBUG_PROPERTY_PADDING_X,
+                start_y
+                + indice
+                * line_height
+            ),
+            linea,
+            font=font,
+            fill=(
+                0,
+                0,
+                0,
+                255
+            )
+        )
+
+    canvas.alpha_composite(
+        overlay,
+        (
+            int(image_x),
+            int(
+                image_y
+                + PROPERTY_IMAGE_HEIGHT
+                - DEBUG_PROPERTY_BAR_HEIGHT
+            )
+        )
+    )
+
+
+# ============================================================
 # SLOT
 # ============================================================
 
@@ -3155,7 +3342,8 @@ def obtener_layout_propiedad(
 def dibujar_propiedad(
     canvas,
     fila,
-    indice
+    indice,
+    debug=False
 ):
 
     draw = (
@@ -3207,6 +3395,13 @@ def dibujar_propiedad(
     # ========================================================
     # DATOS
     # ========================================================
+
+    property_text = (
+        fila.get(
+            "property",
+            ""
+        )
+    )
 
     display_location = (
         fila.get(
@@ -3404,6 +3599,25 @@ def dibujar_propiedad(
             ]
         )
 
+    # ========================================================
+    # PROPERTY DEBUG
+    # ========================================================
+
+    if debug:
+
+        dibujar_property_debug(
+            canvas=canvas,
+            property_text=property_text,
+            image_x=
+                layout[
+                    "image_x"
+                ],
+            image_y=
+                layout[
+                    "image_y"
+                ]
+        )
+
 # ============================================================
 # DIRECTORIO PERSONALIZADO OPCIONAL
 # ============================================================
@@ -3480,52 +3694,46 @@ def obtener_directorio_personalizado():
 
 def generar_flyer(
     grupo,
-    numero
+    numero,
+    debug=False
 ):
 
-    flyer = (
-        abrir_template()
-    )
+    flyer = abrir_template()
 
-    grupo = (
-        grupo.reset_index(
-            drop=True
-        )
+    grupo = grupo.reset_index(
+        drop=True
     )
 
     for indice, (_, fila) in enumerate(
         grupo.iterrows()
     ):
 
-        if (
-            indice
-            >= 10
-        ):
-
+        if indice >= 10:
             break
 
         dibujar_propiedad(
             canvas=flyer,
             fila=fila,
-            indice=indice
+            indice=indice,
+            debug=debug
         )
 
+    directorio_salida = (
+        FLYERS_DEBUG_DIR
+        if debug
+        else FLYERS_DIR
+    )
+
     archivo = (
-        FLYERS_DIR
+        directorio_salida
         /
         f"{FLYER_FILE_PREFIX}_"
         f"{numero:02d}.png"
     )
 
-    flyer = (
-        flyer.convert(
-            "RGB"
-        )
+    flyer = flyer.convert(
+        "RGB"
     )
-
-    # ========================================================
-    # GUARDAR EN OUTPUT NORMAL
-    # ========================================================
 
     flyer.save(
         archivo,
@@ -3533,27 +3741,27 @@ def generar_flyer(
         quality=100
     )
 
-    # ========================================================
-    # GUARDAR COPIA EN DIRECTORIO PERSONALIZADO
-    # ========================================================
+    # Solo el flyer final se copia al directorio personalizado.
 
-    directorio_personalizado = (
-        obtener_directorio_personalizado()
-    )
+    if not debug:
 
-    if directorio_personalizado is not None:
-
-        archivo_personalizado = (
-            directorio_personalizado
-            /
-            archivo.name
+        directorio_personalizado = (
+            obtener_directorio_personalizado()
         )
 
-        flyer.save(
-            archivo_personalizado,
-            format=FLYER_FORMAT,
-            quality=100
-        )
+        if directorio_personalizado is not None:
+
+            archivo_personalizado = (
+                directorio_personalizado
+                /
+                archivo.name
+            )
+
+            flyer.save(
+                archivo_personalizado,
+                format=FLYER_FORMAT,
+                quality=100
+            )
 
     return archivo
 
@@ -3561,44 +3769,39 @@ def generar_flyer(
 # ============================================================
 # LIMPIAR FLYERS ANTERIORES
 # ============================================================
-#
-# Antes de generar una nueva tanda de flyers,
-# eliminamos únicamente los PNG creados automáticamente
-# por este proyecto.
-#
-# De esta forma, si anteriormente existían 3 flyers
-# y ahora solo se necesitan 2, el flyer 03 anterior
-# no quedará guardado por error.
-#
-# ============================================================
 
 def limpiar_flyers_anteriores():
 
-    archivos = (
-        FLYERS_DIR.glob(
-            f"{FLYER_FILE_PREFIX}_*.png"
-        )
-    )
+    directorios = [
+        FLYERS_DIR,
+        FLYERS_DEBUG_DIR
+    ]
 
     eliminados = 0
 
-    for archivo in archivos:
+    for directorio in directorios:
 
-        try:
+        archivos = directorio.glob(
+            f"{FLYER_FILE_PREFIX}_*.png"
+        )
 
-            archivo.unlink()
+        for archivo in archivos:
 
-            eliminados += 1
+            try:
 
-        except Exception as error:
+                archivo.unlink()
+                eliminados += 1
 
-            print(
-                f"No se pudo eliminar "
-                f"{archivo.name}: "
-                f"{error}"
-            )
+            except Exception as error:
+
+                print(
+                    f"No se pudo eliminar "
+                    f"{archivo.name}: "
+                    f"{error}"
+                )
 
     return eliminados
+
 
 # ============================================================
 # GENERAR TODOS
@@ -3645,12 +3848,19 @@ def generar_flyers(
         archivo = (
             generar_flyer(
                 grupo=grupo,
-                numero=numero
+                numero=numero,
+                debug=False
             )
         )
 
         archivos.append(
             archivo
+        )
+
+        generar_flyer(
+            grupo=grupo,
+            numero=numero,
+            debug=True
         )
 
     return archivos

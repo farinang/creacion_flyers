@@ -30,6 +30,8 @@ ICONS_DIR = ASSETS_DIR / "icons"
 
 FLYERS_DIR = OUTPUT_DIR / "flyers"
 
+FLYERS_DEBUG_DIR = OUTPUT_DIR / "flyers_debug"
+
 # ============================================================
 # DIRECTORIO PERSONALIZADO OPCIONAL
 # ============================================================
@@ -54,6 +56,7 @@ FONTS_DIR.mkdir(exist_ok=True)
 ICONS_DIR.mkdir(exist_ok=True)
 
 FLYERS_DIR.mkdir(exist_ok=True)
+FLYERS_DEBUG_DIR.mkdir(exist_ok=True)
 
 
 # ============================================================
@@ -638,6 +641,16 @@ LOCATION_MAX_LINES = 2
 # Cuántos píxeles adicionales subir
 # cuando Location ocupa 2 líneas
 LOCATION_MULTILINE_EXTRA_UP = 12
+
+# ============================================================
+# FLYER - DEBUG PROPERTY
+# ============================================================
+
+DEBUG_PROPERTY_FONT_SIZE = 9
+DEBUG_PROPERTY_BAR_HEIGHT = 32
+DEBUG_PROPERTY_PADDING_X = 5
+DEBUG_PROPERTY_MAX_LINES = 2
+
 
 # ============================================================
 # FLYER - SALIDA
