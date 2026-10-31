@@ -956,6 +956,14 @@ def crear_grupos_flyers(
     #
     # ========================================================
 
+        # ========================================================
+    # CONSOLIDAR PROPERTIES PARA FLYER
+    # ========================================================
+
+    current_antes_consolidar = (
+        len(current)
+    )
+
     current = (
         consolidar_propiedades_flyer(
             current
@@ -966,6 +974,43 @@ def crear_grupos_flyers(
         consolidar_propiedades_flyer(
             archived
         )
+    )
+
+    current_despues_consolidar = (
+        len(current)
+    )
+
+    registros_consolidados = (
+        current_antes_consolidar
+        - current_despues_consolidar
+    )
+
+    print("\n" + "=" * 100)
+    print("PREPARACIÓN PARA FLYERS")
+    print("=" * 100)
+
+    print(
+        f"\nCurrent antes de consolidar: "
+        f"{current_antes_consolidar}"
+    )
+
+    print(
+        "\nConsolidaciones especiales:"
+    )
+
+    print(
+        f"- Registros eliminados por consolidación de Kingston: "
+        f"{registros_consolidados}"
+    )
+
+    print(
+        f"\nCurrent finales para flyers: "
+        f"{current_despues_consolidar}"
+    )
+
+    print(
+        f"Archived utilizados: "
+        f"{len(archived)}"
     )
 
     # ========================================================
