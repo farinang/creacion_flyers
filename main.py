@@ -35,11 +35,16 @@ from utils.flyer import (
 )
 
 
-def main():
+from utils.flyer_individual import (
+    descargar_flyers_individuales
+)
 
-    print("\n" + "=" * 100)
-    print("RENT REALTY - CREACION DE FLYERS")
-    print("=" * 100)
+
+# ============================================================
+# FLYERS GRUPALES
+# ============================================================
+
+def ejecutar_flyers_grupales():
 
     # ========================================================
     # FASE 1 - MONDAY
@@ -270,6 +275,61 @@ def main():
 
     print(
         "\nProceso terminado."
+    )
+
+
+# ============================================================
+# MENÚ PRINCIPAL
+# ============================================================
+
+def main():
+
+    print("\n" + "=" * 100)
+    print("RENT REALTY - CREACION DE FLYERS")
+    print("=" * 100)
+
+    print(
+        "\nSeleccione una opción:"
+    )
+
+    print(
+        "\n1. Generar flyers grupales"
+    )
+
+    print(
+        "2. Descargar flyers individuales"
+    )
+
+    opcion = input(
+        "\nOpción: "
+    ).strip()
+
+    # ========================================================
+    # FLYERS GRUPALES
+    # ========================================================
+
+    if opcion == "1":
+
+        ejecutar_flyers_grupales()
+
+        return
+
+    # ========================================================
+    # FLYERS INDIVIDUALES
+    # ========================================================
+
+    if opcion == "2":
+
+        descargar_flyers_individuales()
+
+        return
+
+    # ========================================================
+    # OPCIÓN INVÁLIDA
+    # ========================================================
+
+    print(
+        "\n[ERROR] Opción inválida."
     )
 
 

@@ -32,6 +32,11 @@ FLYERS_DIR = OUTPUT_DIR / "flyers"
 
 FLYERS_DEBUG_DIR = OUTPUT_DIR / "flyers_debug"
 
+FLYERS_INDIVIDUALES_DIR = (
+    OUTPUT_DIR /
+    "flyers_individuales"
+)
+
 # ============================================================
 # DIRECTORIO PERSONALIZADO OPCIONAL
 # ============================================================
@@ -57,6 +62,10 @@ ICONS_DIR.mkdir(exist_ok=True)
 
 FLYERS_DIR.mkdir(exist_ok=True)
 FLYERS_DEBUG_DIR.mkdir(exist_ok=True)
+
+FLYERS_INDIVIDUALES_DIR.mkdir(
+    exist_ok=True
+)
 
 
 # ============================================================

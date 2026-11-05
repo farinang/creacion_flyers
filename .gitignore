@@ -11,7 +11,7 @@ cache/
 respaldo/
 
 # Codigo prueba
-main_flyers.py
+main_flyers_debug.py
 
 # CSV generados
 data/*.csv
@@ -34,3 +34,6 @@ directorio.txt
 
 # Flyers Debug
 output/flyers_debug/
+
+# Flyers Individuales
+output/flyers_individuales/
