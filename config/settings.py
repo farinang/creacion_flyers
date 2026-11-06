@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 # ============================================================
 # RUTAS BASE
 # ============================================================
@@ -12,16 +11,51 @@ CREDENTIALS_DIR = BASE_DIR / "credentials"
 ASSETS_DIR = BASE_DIR / "assets"
 OUTPUT_DIR = BASE_DIR / "output"
 
-CACHE_DIR = BASE_DIR / "cache"
+# ============================================================
+# CACHE
+# ============================================================
+
+CACHE_DIR = (
+    BASE_DIR /
+    "cache"
+)
+
+# ============================================================
+# CACHE - FLYERS GRUPALES
+# ============================================================
+
+CACHE_GRUPALES_DIR = (
+    CACHE_DIR /
+    "grupales"
+)
 
 CACHE_IMAGES_DIR = (
-    CACHE_DIR /
+    CACHE_GRUPALES_DIR /
     "images"
 )
 
 CACHE_MANIFEST_FILE = (
+    CACHE_GRUPALES_DIR /
+    "manifest.json"
+)
+
+# ============================================================
+# CACHE - FLYERS INDIVIDUALES
+# ============================================================
+
+CACHE_INDIVIDUALES_DIR = (
     CACHE_DIR /
-    "cache_manifest.json"
+    "individuales"
+)
+
+CACHE_FLYERS_INDIVIDUALES_DIR = (
+    CACHE_INDIVIDUALES_DIR /
+    "images"
+)
+
+CACHE_FLYERS_INDIVIDUALES_MANIFEST_FILE = (
+    CACHE_INDIVIDUALES_DIR /
+    "manifest.json"
 )
 
 TEMPLATES_DIR = ASSETS_DIR / "templates"
@@ -67,6 +101,25 @@ FLYERS_INDIVIDUALES_DIR.mkdir(
     exist_ok=True
 )
 
+CACHE_DIR.mkdir(
+    exist_ok=True
+)
+
+CACHE_GRUPALES_DIR.mkdir(
+    exist_ok=True
+)
+
+CACHE_IMAGES_DIR.mkdir(
+    exist_ok=True
+)
+
+CACHE_INDIVIDUALES_DIR.mkdir(
+    exist_ok=True
+)
+
+CACHE_FLYERS_INDIVIDUALES_DIR.mkdir(
+    exist_ok=True
+)
 
 # ============================================================
 # MONDAY
@@ -80,7 +133,6 @@ MONDAY_TOKEN_FILE = (
     CREDENTIALS_DIR /
     "monday_token.txt"
 )
-
 
 def leer_monday_token():
 
@@ -320,31 +372,6 @@ BATH_ICON_FILE = (
     ICONS_DIR /
     "bath.png"
 )
-
-
-# ============================================================
-# FLYER - FUENTES
-# ============================================================
-
-# FONT_GARET_BOLD = (
-#     FONTS_DIR /
-#     "DejaVuSans-Bold.ttf"
-# )
-
-# FONT_GARET_REGULAR = (
-#     FONTS_DIR /
-#     "Garet Book 300.ttf"
-# )
-
-# FONT_COMFORTAA_BOLD = (
-#     FONTS_DIR /
-#     "Comfortaa-Bold.ttf"
-# )
-
-# FONT_LEAGUE_SPARTAN_BOLD = (
-#     FONTS_DIR /
-#     "League Spartan Bold 700.otf"
-# )
 
 FONT_GARET_BOLD = (
     FONTS_DIR /
