@@ -779,86 +779,6 @@ def obtener_ruta_cache(
         f"{nombre_seguro}.{extension}"
     )
 
-def validar_flyers_requeridos(
-    registros
-):
-
-    faltantes = []
-
-    for registro in registros:
-
-        archivo = (
-            registro.get(
-                "archivo"
-            )
-        )
-
-        if archivo is None:
-
-            faltantes.append(
-                registro[
-                    "output_property"
-                ]
-            )
-
-            continue
-
-        url = (
-            obtener_url_archivo(
-                archivo
-            )
-        )
-
-        if not url:
-
-            faltantes.append(
-                registro[
-                    "output_property"
-                ]
-            )
-
-    if not faltantes:
-
-        return
-
-    print("\n" + "=" * 100)
-    print("ERROR - FALTAN FLYERS INDIVIDUALES")
-    print("=" * 100)
-
-    print(
-        f"\nFaltan {len(faltantes)} "
-        f"flyer(s) individual(es) "
-        f"para propiedades Current."
-    )
-
-    print(
-        "\nActualice la columna "
-        "'Listing Flyer' en Monday "
-        "antes de continuar:\n"
-    )
-
-    for property_name in faltantes:
-
-        print(
-            f"- {property_name}"
-        )
-
-    print(
-        "\n[MODO PRUEBA] "
-        "El programa continuará."
-    )
-
-    return
-
-    # raise SystemExit(
-    #     1
-    # )
-
-
-# # ============================================================
-# # VALIDAR QUE TODOS LOS CURRENT TENGAN FLYER
-# # ============================================================
-
 # def validar_flyers_requeridos(
 #     registros
 # ):
@@ -924,13 +844,93 @@ def validar_flyers_requeridos(
 #         )
 
 #     print(
-#         "\n[ERROR] El programa se detuvo. "
-#         "No se modificaron las carpetas de salida."
+#         "\n[MODO PRUEBA] "
+#         "El programa continuará."
 #     )
 
-#     raise SystemExit(
-#         1
-#     )
+#     return
+
+#     # raise SystemExit(
+#     #     1
+#     # )
+
+
+# ============================================================
+# VALIDAR QUE TODOS LOS CURRENT TENGAN FLYER
+# ============================================================
+
+def validar_flyers_requeridos(
+    registros
+):
+
+    faltantes = []
+
+    for registro in registros:
+
+        archivo = (
+            registro.get(
+                "archivo"
+            )
+        )
+
+        if archivo is None:
+
+            faltantes.append(
+                registro[
+                    "output_property"
+                ]
+            )
+
+            continue
+
+        url = (
+            obtener_url_archivo(
+                archivo
+            )
+        )
+
+        if not url:
+
+            faltantes.append(
+                registro[
+                    "output_property"
+                ]
+            )
+
+    if not faltantes:
+
+        return
+
+    print("\n" + "=" * 100)
+    print("ERROR - FALTAN FLYERS INDIVIDUALES")
+    print("=" * 100)
+
+    print(
+        f"\nFaltan {len(faltantes)} "
+        f"flyer(s) individual(es) "
+        f"para propiedades Current."
+    )
+
+    print(
+        "\nActualice la columna "
+        "'Listing Flyer' en Monday "
+        "antes de continuar:\n"
+    )
+
+    for property_name in faltantes:
+
+        print(
+            f"- {property_name}"
+        )
+
+    print(
+        "\n[ERROR] El programa se detuvo. "
+        "No se modificaron las carpetas de salida."
+    )
+
+    raise SystemExit(
+        1
+    )
 
 
 # ============================================================
